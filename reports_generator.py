@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Apr  9 10:24:05 2019
-
-@author: gazhakv
-"""
 import MySQLdb
 import pandas as pd
 import numpy as np
