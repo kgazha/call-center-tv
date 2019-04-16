@@ -12,8 +12,8 @@ from working_time import compute_working_time
 
 config = configparser.ConfigParser()
 config.read('settings.ini')
-BASE_DIR = 'Z:\Отчеты OTRS\CallCenter'
-# BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+# BASE_DIR = 'Z:\Отчеты OTRS\CallCenter'
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 db = MySQLdb.connect(config['CONNECTION']['HOST'],
                      config['CONNECTION']['USER'],
@@ -28,6 +28,8 @@ class Report:
         self.cursor = db.cursor(MySQLdb.cursors.DictCursor)
         self.data = None
         self.form = None
+        self.form_name = None
+        self.header = None
 
     def get_data_from_db(self, filename, *args):
         sql_form = open(filename).read()
@@ -42,6 +44,54 @@ class Report:
 
     def form_to_excel(self):
         pass
+
+    def form_to_excel_by_territory(self, column_range, header_merge_range):
+        if not self.form:
+            return
+        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
+        for record in self.form.items():
+            worksheet = workbook.add_worksheet(name=record[0])
+            worksheet.set_column(column_range, 20)
+            worksheet.set_row(0, 30)
+            worksheet.set_row(1, 80)
+            header_format = self.get_header_format(workbook)
+            row_format = self.get_row_format(workbook)
+            worksheet.merge_range(header_merge_range, record[0], header_format)
+            for idx, key in enumerate(self.header):
+                worksheet.write(1, idx, key, header_format)
+            for row_idx, data in enumerate(record[1], start=2):
+                for col_idx, (key, value) in enumerate(data.items()):
+                    worksheet.write(row_idx, col_idx, value, row_format)
+        workbook.close()
+
+    def form_to_excel_aggregated(self, column_range):
+        if not self.form:
+            return
+        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
+        worksheet = workbook.add_worksheet()
+        worksheet.set_column('A:B', 40)
+        worksheet.set_column(column_range, 20)
+        worksheet.set_row(0, 80)
+        header_format = self.get_header_format(workbook)
+        row_format = self.get_row_format(workbook)
+        for idx, key in enumerate(self.header):
+            worksheet.write(0, idx, key, header_format)
+        row_idx = 1
+        for record in self.form.items():
+            for data in record[1]:
+                worksheet.write(row_idx, 0, record[0], row_format)
+                for col_idx, (key, value) in enumerate(data.items(), start=1):
+                    worksheet.write(row_idx, col_idx, value, row_format)
+                row_idx += 1
+        workbook.close()
 
     @staticmethod
     def get_header_format(workbook):
@@ -361,27 +411,7 @@ class ReportForm04(Report):
         self.form = dict(data)
 
     def form_to_excel(self):
-        if not self.form:
-            return
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
-        for record in self.form.items():
-            worksheet = workbook.add_worksheet(name=record[0])
-            worksheet.set_column('A:G', 20)
-            worksheet.set_row(0, 30)
-            worksheet.set_row(1, 80)
-            header_format = self.get_header_format(workbook)
-            row_format = self.get_row_format(workbook)
-            worksheet.merge_range('A1:G1', record[0], header_format)
-            for idx, key in enumerate(self.header):
-                worksheet.write(1, idx, key, header_format)
-            for row_idx, data in enumerate(record[1], start=2):
-                for col_idx, (key, value) in enumerate(data.items()):
-                    worksheet.write(row_idx, col_idx, value, row_format)
-        workbook.close()
+        self.form_to_excel_by_territory('A:G', 'A1:G1')
 
 
 class ReportForm51(Report):
@@ -508,29 +538,7 @@ class ReportForm52(Report):
         self.form = dict(data)
 
     def form_to_excel(self):
-        if not self.form:
-            return
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
-        worksheet = workbook.add_worksheet()
-        worksheet.set_column('A:B', 40)
-        worksheet.set_column('B:G', 20)
-        worksheet.set_row(0, 80)
-        header_format = self.get_header_format(workbook)
-        row_format = self.get_row_format(workbook)
-        for idx, key in enumerate(self.header):
-            worksheet.write(0, idx, key, header_format)
-        row_idx = 1
-        for record in self.form.items():
-            for data in record[1]:
-                worksheet.write(row_idx, 0, record[0], row_format)
-                for col_idx, (key, value) in enumerate(data.items(), start=1):
-                    worksheet.write(row_idx, col_idx, value, row_format)
-                row_idx += 1
-        workbook.close()
+        self.form_to_excel_aggregated('B:G')
 
 
 class ReportForm53(Report):
@@ -576,29 +584,7 @@ class ReportForm53(Report):
         self.form = dict(data)
 
     def form_to_excel(self):
-        if not self.form:
-            return
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
-        worksheet = workbook.add_worksheet()
-        worksheet.set_column('A:B', 40)
-        worksheet.set_column('B:G', 20)
-        worksheet.set_row(0, 80)
-        header_format = self.get_header_format(workbook)
-        row_format = self.get_row_format(workbook)
-        for idx, key in enumerate(self.header):
-            worksheet.write(0, idx, key, header_format)
-        row_idx = 1
-        for record in self.form.items():
-            for data in record[1]:
-                worksheet.write(row_idx, 0, record[0], row_format)
-                for col_idx, (key, value) in enumerate(data.items(), start=1):
-                    worksheet.write(row_idx, col_idx, value, row_format)
-                row_idx += 1
-        workbook.close()
+        self.form_to_excel_aggregated('B:G')
 
 
 class ReportForm54(Report):
@@ -644,29 +630,7 @@ class ReportForm54(Report):
         self.form = dict(data)
 
     def form_to_excel(self):
-        if not self.form:
-            return
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
-        worksheet = workbook.add_worksheet()
-        worksheet.set_column('A:B', 40)
-        worksheet.set_column('B:G', 20)
-        worksheet.set_row(0, 80)
-        header_format = self.get_header_format(workbook)
-        row_format = self.get_row_format(workbook)
-        for idx, key in enumerate(self.header):
-            worksheet.write(0, idx, key, header_format)
-        row_idx = 1
-        for record in self.form.items():
-            for data in record[1]:
-                worksheet.write(row_idx, 0, record[0], row_format)
-                for col_idx, (key, value) in enumerate(data.items(), start=1):
-                    worksheet.write(row_idx, col_idx, value, row_format)
-                row_idx += 1
-        workbook.close()
+        self.form_to_excel_aggregated('B:G')
 
 
 class ReportForm55(Report):
@@ -710,29 +674,7 @@ class ReportForm55(Report):
         self.form = dict(data)
 
     def form_to_excel(self):
-        if not self.form:
-            return
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
-        worksheet = workbook.add_worksheet()
-        worksheet.set_column('A:B', 40)
-        worksheet.set_column('B:H', 20)
-        worksheet.set_row(0, 80)
-        header_format = self.get_header_format(workbook)
-        row_format = self.get_row_format(workbook)
-        for idx, key in enumerate(self.header):
-            worksheet.write(0, idx, key, header_format)
-        row_idx = 1
-        for record in self.form.items():
-            for data in record[1]:
-                worksheet.write(row_idx, 0, record[0], row_format)
-                for col_idx, (key, value) in enumerate(data.items(), start=1):
-                    worksheet.write(row_idx, col_idx, value, row_format)
-                row_idx += 1
-        workbook.close()
+        self.form_to_excel_aggregated('B:H')
 
 
 class ReportForm06(Report):
@@ -768,27 +710,7 @@ class ReportForm06(Report):
         self.form = dict(data)
 
     def form_to_excel(self):
-        if not self.form:
-            return
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
-        for record in self.form.items():
-            worksheet = workbook.add_worksheet(name=record[0])
-            worksheet.set_column('A:C', 20)
-            worksheet.set_row(0, 30)
-            worksheet.set_row(1, 80)
-            header_format = self.get_header_format(workbook)
-            row_format = self.get_row_format(workbook)
-            worksheet.merge_range('A1:C1', record[0], header_format)
-            for idx, key in enumerate(self.header):
-                worksheet.write(1, idx, key, header_format)
-            for row_idx, data in enumerate(record[1], start=2):
-                for col_idx, (key, value) in enumerate(data.items()):
-                    worksheet.write(row_idx, col_idx, value, row_format)
-        workbook.close()
+        self.form_to_excel_by_territory('A:C', 'A1:C1')
 
 
 class ReportForm07(Report):
@@ -821,27 +743,7 @@ class ReportForm07(Report):
         self.form = dict(data)
 
     def form_to_excel(self):
-        if not self.form:
-            return
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
-        for record in self.form.items():
-            worksheet = workbook.add_worksheet(name=record[0])
-            worksheet.set_column('A:B', 20)
-            worksheet.set_row(0, 30)
-            worksheet.set_row(1, 80)
-            header_format = self.get_header_format(workbook)
-            row_format = self.get_row_format(workbook)
-            worksheet.merge_range('A1:B1', record[0], header_format)
-            for idx, key in enumerate(self.header):
-                worksheet.write(1, idx, key, header_format)
-            for row_idx, data in enumerate(record[1], start=2):
-                for col_idx, (key, value) in enumerate(data.items()):
-                    worksheet.write(row_idx, col_idx, value, row_format)
-        workbook.close()
+        self.form_to_excel_by_territory('A:B', 'A1:B1')
 
 
 class ReportForm08(Report):
@@ -876,27 +778,7 @@ class ReportForm08(Report):
         self.form = dict(data)
 
     def form_to_excel(self):
-        if not self.form:
-            return
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
-        for record in self.form.items():
-            worksheet = workbook.add_worksheet(name=record[0])
-            worksheet.set_column('A:C', 20)
-            worksheet.set_row(0, 30)
-            worksheet.set_row(1, 80)
-            header_format = self.get_header_format(workbook)
-            row_format = self.get_row_format(workbook)
-            worksheet.merge_range('A1:C1', record[0], header_format)
-            for idx, key in enumerate(self.header):
-                worksheet.write(1, idx, key, header_format)
-            for row_idx, data in enumerate(record[1], start=2):
-                for col_idx, (key, value) in enumerate(data.items()):
-                    worksheet.write(row_idx, col_idx, value, row_format)
-        workbook.close()
+        self.form_to_excel_by_territory('A:C', 'A1:C1')
 
 
 class ReportFacade:
