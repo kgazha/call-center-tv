@@ -12,7 +12,8 @@ from working_time import compute_working_time
 
 config = configparser.ConfigParser()
 config.read('settings.ini')
-BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+BASE_DIR = 'Z:\Отчеты OTRS\CallCenter'
+# BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 db = MySQLdb.connect(config['CONNECTION']['HOST'],
                      config['CONNECTION']['USER'],
@@ -116,6 +117,26 @@ class RecordForm55:
         self.phone_number = ''
         self.create_time = ''
         self.ticket_number = ''
+
+
+class RecordForm06:
+    def __init__(self):
+        self.name = ''
+        self.locality = ''
+        self.address = ''
+
+
+class RecordForm07:
+    def __init__(self):
+        self.name = ''
+        self.locality = ''
+
+
+class RecordForm08:
+    def __init__(self):
+        self.name = ''
+        self.locality = ''
+        self.comment = ''
 
 
 class ReportForm01(Report):
@@ -539,6 +560,74 @@ class ReportForm53(Report):
             ticket_df = df[df['ticket_id'] == _id]
             create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
             current_date = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
+            if compute_working_time(create_time, current_date) < 24:
+                continue
+            record = RecordForm53()
+            if not ticket_df[ticket_df['field_id'] == 12]['value_text'].empty:
+                record.name = ticket_df[ticket_df['field_id'] == 12]['value_text'].item()
+            if not ticket_df[ticket_df['field_id'] == 15]['value_text'].empty:
+                record.locality = ticket_df[ticket_df['field_id'] == 15]['value_text'].item()
+            if not ticket_df[ticket_df['field_id'] == 17]['value_text'].empty:
+                record.address = ticket_df[ticket_df['field_id'] == 17]['value_text'].item()
+            if not ticket_df[ticket_df['field_id'] == 16]['value_text'].empty:
+                record.phone_number = ticket_df[ticket_df['field_id'] == 16]['value_text'].item()
+            record.create_time = str(ticket_df['close_time'].iloc[0])
+            data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
+        self.form = dict(data)
+
+    def form_to_excel(self):
+        if not self.form:
+            return
+        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
+        worksheet = workbook.add_worksheet()
+        worksheet.set_column('A:B', 40)
+        worksheet.set_column('B:G', 20)
+        worksheet.set_row(0, 80)
+        header_format = self.get_header_format(workbook)
+        row_format = self.get_row_format(workbook)
+        for idx, key in enumerate(self.header):
+            worksheet.write(0, idx, key, header_format)
+        row_idx = 1
+        for record in self.form.items():
+            for data in record[1]:
+                worksheet.write(row_idx, 0, record[0], row_format)
+                for col_idx, (key, value) in enumerate(data.items(), start=1):
+                    worksheet.write(row_idx, col_idx, value, row_format)
+                row_idx += 1
+        workbook.close()
+
+
+class ReportForm54(Report):
+    def __init__(self):
+        super().__init__()
+        self.form_name = 'Форма_5_4'
+        self.header = [
+            'Наименование ОМСУ',
+            'ФИО',
+            'Населенный пункт',
+            'Точный адрес',
+            'Телефонный номер',
+            'Дата открытия',
+        ]
+
+    def get_data_from_db(self):
+        start_date = config['REPORT_FORM_54']['START_DATE']
+        super(ReportForm54, self).get_data_from_db('form_54.sql', start_date)
+
+    def data_to_form_template(self):
+        df = pd.DataFrame.from_records(self.data)
+        if df.empty:
+            return
+        ticket_ids = list(set(df['ticket_id']))
+        data = defaultdict(list)
+        for _id in ticket_ids:
+            ticket_df = df[df['ticket_id'] == _id]
+            create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
+            current_date = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
             if compute_working_time(create_time, current_date) < 80:
                 continue
             record = RecordForm53()
@@ -646,6 +735,170 @@ class ReportForm55(Report):
         workbook.close()
 
 
+class ReportForm06(Report):
+    def __init__(self):
+        super().__init__()
+        self.form_name = 'Форма_6'
+        self.header = [
+            'ФИО',
+            'Наименование населенного пункта',
+            'Точный адрес',
+        ]
+
+    def get_data_from_db(self):
+        start_date = config['REPORT_FORM_06']['START_DATE']
+        super(ReportForm06, self).get_data_from_db('form_06.sql', start_date)
+
+    def data_to_form_template(self):
+        df = pd.DataFrame.from_records(self.data)
+        if df.empty:
+            return
+        ticket_ids = list(set(df['ticket_id']))
+        data = defaultdict(list)
+        for _id in ticket_ids:
+            ticket_df = df[df['ticket_id'] == _id]
+            record = RecordForm06()
+            if not ticket_df[ticket_df['field_id'] == 28]['value_text'].empty:
+                record.name = ticket_df[ticket_df['field_id'] == 28]['value_text'].item()
+            if not ticket_df[ticket_df['field_id'] == 15]['value_text'].empty:
+                record.locality = ticket_df[ticket_df['field_id'] == 15]['value_text'].item()
+            if not ticket_df[ticket_df['field_id'] == 17]['value_text'].empty:
+                record.address = ticket_df[ticket_df['field_id'] == 17]['value_text'].item()
+            data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
+        self.form = dict(data)
+
+    def form_to_excel(self):
+        if not self.form:
+            return
+        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
+        for record in self.form.items():
+            worksheet = workbook.add_worksheet(name=record[0])
+            worksheet.set_column('A:C', 20)
+            worksheet.set_row(0, 30)
+            worksheet.set_row(1, 80)
+            header_format = self.get_header_format(workbook)
+            row_format = self.get_row_format(workbook)
+            worksheet.merge_range('A1:C1', record[0], header_format)
+            for idx, key in enumerate(self.header):
+                worksheet.write(1, idx, key, header_format)
+            for row_idx, data in enumerate(record[1], start=2):
+                for col_idx, (key, value) in enumerate(data.items()):
+                    worksheet.write(row_idx, col_idx, value, row_format)
+        workbook.close()
+
+
+class ReportForm07(Report):
+    def __init__(self):
+        super().__init__()
+        self.form_name = 'Форма_7'
+        self.header = [
+            'ФИО',
+            'Наименование населенного пункта',
+        ]
+
+    def get_data_from_db(self):
+        start_date = config['REPORT_FORM_07']['START_DATE']
+        super(ReportForm07, self).get_data_from_db('form_07.sql', start_date)
+
+    def data_to_form_template(self):
+        df = pd.DataFrame.from_records(self.data)
+        if df.empty:
+            return
+        ticket_ids = list(set(df['ticket_id']))
+        data = defaultdict(list)
+        for _id in ticket_ids:
+            ticket_df = df[df['ticket_id'] == _id]
+            record = RecordForm07()
+            if not ticket_df[ticket_df['field_id'] == 12]['value_text'].empty:
+                record.name = ticket_df[ticket_df['field_id'] == 12]['value_text'].item()
+            if not ticket_df[ticket_df['field_id'] == 15]['value_text'].empty:
+                record.locality = ticket_df[ticket_df['field_id'] == 15]['value_text'].item()
+            data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
+        self.form = dict(data)
+
+    def form_to_excel(self):
+        if not self.form:
+            return
+        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
+        for record in self.form.items():
+            worksheet = workbook.add_worksheet(name=record[0])
+            worksheet.set_column('A:B', 20)
+            worksheet.set_row(0, 30)
+            worksheet.set_row(1, 80)
+            header_format = self.get_header_format(workbook)
+            row_format = self.get_row_format(workbook)
+            worksheet.merge_range('A1:B1', record[0], header_format)
+            for idx, key in enumerate(self.header):
+                worksheet.write(1, idx, key, header_format)
+            for row_idx, data in enumerate(record[1], start=2):
+                for col_idx, (key, value) in enumerate(data.items()):
+                    worksheet.write(row_idx, col_idx, value, row_format)
+        workbook.close()
+
+
+class ReportForm08(Report):
+    def __init__(self):
+        super().__init__()
+        self.form_name = 'Форма_8'
+        self.header = [
+            'ФИО',
+            'Наименование населенного пункта',
+            'Какие комментарии даны',
+        ]
+
+    def get_data_from_db(self):
+        start_date = config['REPORT_FORM_08']['START_DATE']
+        super(ReportForm08, self).get_data_from_db('form_08.sql', start_date)
+
+    def data_to_form_template(self):
+        df = pd.DataFrame.from_records(self.data)
+        if df.empty:
+            return
+        ticket_ids = list(set(df['ticket_id']))
+        data = defaultdict(list)
+        for _id in ticket_ids:
+            ticket_df = df[df['ticket_id'] == _id]
+            record = RecordForm08()
+            if not ticket_df[ticket_df['field_id'] == 12]['value_text'].empty:
+                record.name = ticket_df[ticket_df['field_id'] == 12]['value_text'].item()
+            if not ticket_df[ticket_df['field_id'] == 15]['value_text'].empty:
+                record.locality = ticket_df[ticket_df['field_id'] == 15]['value_text'].item()
+            record.comment = ticket_df['a_body'].iloc[0]
+            data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
+        self.form = dict(data)
+
+    def form_to_excel(self):
+        if not self.form:
+            return
+        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
+        for record in self.form.items():
+            worksheet = workbook.add_worksheet(name=record[0])
+            worksheet.set_column('A:C', 20)
+            worksheet.set_row(0, 30)
+            worksheet.set_row(1, 80)
+            header_format = self.get_header_format(workbook)
+            row_format = self.get_row_format(workbook)
+            worksheet.merge_range('A1:C1', record[0], header_format)
+            for idx, key in enumerate(self.header):
+                worksheet.write(1, idx, key, header_format)
+            for row_idx, data in enumerate(record[1], start=2):
+                for col_idx, (key, value) in enumerate(data.items()):
+                    worksheet.write(row_idx, col_idx, value, row_format)
+        workbook.close()
+
+
 class ReportFacade:
     reports = None
 
@@ -659,7 +912,11 @@ class ReportFacade:
             ReportForm51(),
             ReportForm52(),
             ReportForm53(),
+            ReportForm54(),
             ReportForm55(),
+            ReportForm06(),
+            ReportForm07(),
+            ReportForm08(),
         ]
 
     @classmethod
