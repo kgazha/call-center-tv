@@ -162,7 +162,7 @@ class RecordForm53:
         self.address = ''
         self.phone_number = ''
         self.create_time = ''
-        self.complaint = ''
+        self.complaint = 0
 
 
 class RecordForm55:
@@ -173,7 +173,7 @@ class RecordForm55:
         self.phone_number = ''
         self.create_time = ''
         self.ticket_number = ''
-        self.complaint = ''
+        self.complaint = 0
 
 
 class RecordForm06:
@@ -223,8 +223,8 @@ class ReportForm01(Report):
         _index = list(set(map(lambda x: x['value_text'], self.data)))
         df = pd.DataFrame(0, index=_index, columns=_values)
         for row in self.data:
-            if row['value_int'] is not None:
-                df.at[row['value_text'], self.themes[row['complaint_field_id']]] = row['value_int']
+            if row['complaints'] is not None:
+                df.at[row['value_text'], self.themes[37]] = row['complaints']
             df.at[row['value_text'], self.themes[row['ticket_type_id']]] = row['frequency']
         df.at['Итого'] = 0
         for key in df.keys():
@@ -498,7 +498,6 @@ class ReportForm52(Report):
         super().__init__()
         self.form_name = 'Форма_5_2'
         self.header = [
-            'Наименование ОМСУ',
             'ФИО',
             'Населенный пункт',
             'Точный адрес',
@@ -535,7 +534,7 @@ class ReportForm52(Report):
         self.form = dict(data)
 
     def form_to_excel(self):
-        self.form_to_excel_aggregated('B:G')
+        self.form_to_excel_by_territory('A:F', 'A1:F1')
 
 
 class ReportForm53(Report):
@@ -543,7 +542,6 @@ class ReportForm53(Report):
         super().__init__()
         self.form_name = 'Форма_5_3'
         self.header = [
-            'Наименование ОМСУ',
             'ФИО',
             'Населенный пункт',
             'Точный адрес',
@@ -578,13 +576,14 @@ class ReportForm53(Report):
             if not ticket_df[ticket_df['field_id'] == 16]['value_text'].empty:
                 record.phone_number = ticket_df[ticket_df['field_id'] == 16]['value_text'].item()
             if not ticket_df[ticket_df['field_id'] == 37]['value_int'].empty:
-                record.complaint = ticket_df[ticket_df['field_id'] == 37]['value_int'].item()
+                if ticket_df[ticket_df['field_id'] == 37]['value_int'].item() is not None:
+                    record.complaint = ticket_df[ticket_df['field_id'] == 37]['value_int'].item()
             record.create_time = str(ticket_df['create_time'].iloc[0])
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
     def form_to_excel(self):
-        self.form_to_excel_aggregated('B:G')
+        self.form_to_excel_by_territory('A:F', 'A1:F1')
 
 
 class ReportForm54(Report):
@@ -592,7 +591,6 @@ class ReportForm54(Report):
         super().__init__()
         self.form_name = 'Форма_5_4'
         self.header = [
-            'Наименование ОМСУ',
             'ФИО',
             'Населенный пункт',
             'Точный адрес',
@@ -627,13 +625,14 @@ class ReportForm54(Report):
             if not ticket_df[ticket_df['field_id'] == 16]['value_text'].empty:
                 record.phone_number = ticket_df[ticket_df['field_id'] == 16]['value_text'].item()
             if not ticket_df[ticket_df['field_id'] == 37]['value_int'].empty:
+                print()
                 record.complaint = ticket_df[ticket_df['field_id'] == 37]['value_int'].item()
             record.create_time = str(ticket_df['create_time'].iloc[0])
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
     def form_to_excel(self):
-        self.form_to_excel_aggregated('B:G')
+        self.form_to_excel_by_territory('A:F', 'A1:F1')
 
 
 class ReportForm55(Report):
@@ -641,7 +640,6 @@ class ReportForm55(Report):
         super().__init__()
         self.form_name = 'Форма_5_5'
         self.header = [
-            'Наименование ОМСУ',
             'ФИО',
             'Населенный пункт',
             'Точный адрес',
@@ -680,7 +678,7 @@ class ReportForm55(Report):
         self.form = dict(data)
 
     def form_to_excel(self):
-        self.form_to_excel_aggregated('B:H')
+        self.form_to_excel_by_territory('A:G', 'A1:G1')
 
 
 class ReportForm06(Report):
