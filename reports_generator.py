@@ -451,19 +451,21 @@ class ReportForm51(Report):
             create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
             current_date = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
             ticket_state_id = ticket_df[ticket_df['field_id'] == 14]['ticket_state_id'].item()
+            ticket_lock_id = ticket_df[ticket_df['field_id'] == 14]['ticket_lock_id'].item()
             if ticket_state_id in (2, 3, 10):
                 data[name]['closed'] += 1
                 data['Итого']['closed'] += 1
-            elif ticket_state_id == 4:
+            elif ticket_state_id == 4 and ticket_lock_id == 2:
                 data[name]['in_work'] += 1
                 data['Итого']['in_work'] += 1
                 if compute_working_time(create_time, current_date) > 80:
                     data[name]['in_work_ten_days'] += 1
                     data['Итого']['in_work_ten_days'] += 1
-            elif ticket_state_id == 1:
+            elif ticket_lock_id == 1:
                 if compute_working_time(create_time, current_date) > 24:
+                    print(ticket_df)
                     data[name]['open_three_days'] += 1
-                    data['Итого']['ope_three_days'] += 1
+                    data['Итого']['open_three_days'] += 1
         self.form = data
 
     def form_to_excel(self):
