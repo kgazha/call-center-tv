@@ -21,6 +21,7 @@ left join
 		inner join ticket_type as tt on t.type_id = tt.id
 		where field_id in (14, 37)
 		and tt.id > 7
+		and t.create_time > '{0}'
 		group by object_id
 	) s2
 	group by value_text

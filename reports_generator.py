@@ -7,12 +7,13 @@ import datetime
 import os
 from collections import defaultdict
 from working_time import compute_working_time
+import pyodbc
 
 
 config = configparser.ConfigParser()
 config.read('settings.ini')
-# BASE_DIR = 'Z:\Отчеты OTRS\CallCenter'
-BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+BASE_DIR = r'Z:\Отчеты OTRS\CallCenter'
+# BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 report_dates = configparser.ConfigParser()
 report_dates.read(os.path.join(BASE_DIR, 'report_dates.ini'))
 
@@ -163,6 +164,24 @@ class RecordForm53:
         self.phone_number = ''
         self.create_time = ''
         self.complaint = 0
+
+
+class RecordForm542:
+    def __init__(self):
+        self.name = ''
+        self.locality = ''
+        self.address = ''
+        self.phone_number = ''
+        self.create_time = ''
+        self.closed = ''
+        self.complaint = 0
+
+
+class RecordForm543:
+    def __init__(self):
+        self.locality = ''
+        self.create_time = ''
+        self.closed = ''
 
 
 class RecordForm55:
@@ -463,7 +482,6 @@ class ReportForm51(Report):
                     data['Итого']['in_work_ten_days'] += 1
             elif ticket_lock_id == 1:
                 if compute_working_time(create_time, current_date) > 24:
-                    print(ticket_df)
                     data[name]['open_three_days'] += 1
                     data['Итого']['open_three_days'] += 1
         self.form = data
@@ -627,7 +645,6 @@ class ReportForm54(Report):
             if not ticket_df[ticket_df['field_id'] == 16]['value_text'].empty:
                 record.phone_number = ticket_df[ticket_df['field_id'] == 16]['value_text'].item()
             if not ticket_df[ticket_df['field_id'] == 37]['value_int'].empty:
-                print()
                 record.complaint = ticket_df[ticket_df['field_id'] == 37]['value_int'].item()
             record.create_time = str(ticket_df['create_time'].iloc[0])
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
@@ -635,6 +652,129 @@ class ReportForm54(Report):
 
     def form_to_excel(self):
         self.form_to_excel_by_territory('A:F', 'A1:F1')
+
+
+class ReportForm542(Report):
+    """
+    Tickets that was closed for ten days
+    """
+    def __init__(self):
+        super().__init__()
+        self.form_name = 'Форма_5_4_2'
+        self.header = [
+            'ФИО',
+            'Населенный пункт',
+            'Точный адрес',
+            'Телефонный номер',
+            'Дата открытия',
+            'Дата закрытия',
+            'Жалоба',
+        ]
+
+    def get_data_from_db(self, filename='form_54_2.sql', *args):
+        start_date = report_dates['REPORT_FORM_54_2']['START_DATE']
+        super(ReportForm542, self).get_data_from_db(filename, start_date)
+
+    def data_to_form_template(self):
+        df = pd.DataFrame.from_records(self.data)
+        if df.empty:
+            return
+        ticket_ids = list(set(df['ticket_id']))
+        data = defaultdict(list)
+        for _id in ticket_ids:
+            ticket_df = df[df['ticket_id'] == _id]
+            create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
+            closed = ticket_df[ticket_df['field_id'] == 14]['closed'].astype(str).item()
+            if compute_working_time(create_time, closed) > 80:
+                continue
+            record = RecordForm542()
+            if not ticket_df[ticket_df['field_id'] == 12]['value_text'].empty:
+                record.name = ticket_df[ticket_df['field_id'] == 12]['value_text'].item()
+            if not ticket_df[ticket_df['field_id'] == 15]['value_text'].empty:
+                record.locality = ticket_df[ticket_df['field_id'] == 15]['value_text'].item()
+            if not ticket_df[ticket_df['field_id'] == 17]['value_text'].empty:
+                record.address = ticket_df[ticket_df['field_id'] == 17]['value_text'].item()
+            if not ticket_df[ticket_df['field_id'] == 16]['value_text'].empty:
+                record.phone_number = ticket_df[ticket_df['field_id'] == 16]['value_text'].item()
+            if not ticket_df[ticket_df['field_id'] == 37]['value_int'].empty:
+                record.complaint = ticket_df[ticket_df['field_id'] == 37]['value_int'].item()
+            record.create_time = str(ticket_df['create_time'].iloc[0])
+            record.closed = str(ticket_df['closed'].iloc[0])
+            data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
+        self.form = dict(data)
+
+    def form_to_excel(self):
+        self.form_to_excel_by_territory('A:G', 'A1:G1')
+
+
+class ReportForm543(Report):
+    def __init__(self):
+        super().__init__()
+        self.form_name = 'Форма_5_4_3'
+        self.header = [
+            'Наименование ОМСУ',
+            'Количество заявок',
+            'Количество закрытых заявок',
+            'Количество заявок, закрытых в течение 10 дней',
+        ]
+
+    def get_data_from_db(self, filename='form_54_3.sql', *args):
+        start_date = report_dates['REPORT_FORM_54_3']['START_DATE']
+        super(ReportForm543, self).get_data_from_db(filename, start_date)
+
+    def data_to_form_template(self):
+        df = pd.DataFrame.from_records(self.data)
+        if df.empty:
+            return
+        ticket_ids = list(set(df['ticket_id']))
+        data = dict()
+        data['Итого'] = {'total_tickets': 0, 'closed': 0, 'closed_on_time': 0}
+        for _id in ticket_ids:
+            ticket_df = df[df['ticket_id'] == _id]
+            if not ticket_df[ticket_df['field_id'] == 14]['value_text'].empty:
+                name = ticket_df[ticket_df['field_id'] == 14]['value_text'].item()
+                if name not in data.keys():
+                    data[name] = {'total_tickets': 0, 'closed': 0, 'closed_on_time': 0}
+            else:
+                continue
+            data[name]['total_tickets'] += 1
+            data['Итого']['total_tickets'] += 1
+            create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
+            closed = ticket_df[ticket_df['field_id'] == 14]['closed'].astype(str).item()
+            ticket_state_id = ticket_df[ticket_df['field_id'] == 14]['ticket_state_id'].item()
+            if ticket_state_id in (2, 3, 10):
+                data[name]['closed'] += 1
+                data['Итого']['closed'] += 1
+                if compute_working_time(create_time, closed) <= 80:
+                    data[name]['closed_on_time'] += 1
+                    data['Итого']['closed_on_time'] += 1
+        self.form = data
+
+    def form_to_excel(self):
+        if not self.form:
+            return
+        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
+        worksheet = workbook.add_worksheet()
+        worksheet.set_column('A:B', 40)
+        worksheet.set_column('B:D', 20)
+        worksheet.set_row(0, 80)
+        header_format = self.get_header_format(workbook)
+        row_format = self.get_row_format(workbook)
+        for idx, key in enumerate(self.header):
+            worksheet.write(0, idx, key, header_format)
+        for row_idx, (name, data) in enumerate(self.form.items()):
+            if name != 'Итого':
+                worksheet.write(row_idx, 0, name, row_format)
+                for col_idx, (key, value) in enumerate(data.items(), start=1):
+                    worksheet.write(row_idx, col_idx, value, row_format)
+        worksheet.write(len(self.form), 0, 'Итого', row_format)
+        for col_idx, (key, value) in enumerate(self.form['Итого'].items(), start=1):
+            worksheet.write(len(self.form), col_idx, value, row_format)
+        workbook.close()
 
 
 class ReportForm55(Report):
@@ -814,6 +954,8 @@ class ReportFacade:
             ReportForm06(),
             ReportForm07(),
             ReportForm08(),
+            ReportForm542(),
+            ReportForm543(),
         ]
 
     @classmethod
