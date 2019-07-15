@@ -17,6 +17,5 @@ inner join (
 ) s ON t.id = s.tid
 where field_id in (14, 12, 15, 17, 16, 37)
 and tt.id = 11
-and ts.id in (2, 3, 10)
 and t.create_time > '{0}'
 order by t.id

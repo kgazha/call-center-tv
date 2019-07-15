@@ -12,7 +12,7 @@ import pyodbc
 
 config = configparser.ConfigParser()
 config.read('settings.ini')
-BASE_DIR = r'Z:\Отчеты OTRS\CallCenter'
+BASE_DIR = 'Z:\Отчеты OTRS\CallCenter'
 # BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 report_dates = configparser.ConfigParser()
 report_dates.read(os.path.join(BASE_DIR, 'report_dates.ini'))
@@ -718,7 +718,7 @@ class ReportForm543(Report):
             'Количество заявок, закрытых в течение 10 дней',
         ]
 
-    def get_data_from_db(self, filename='form_54_3.sql', *args):
+    def get_data_from_db(self, filename='form_54_2.sql', *args):
         start_date = report_dates['REPORT_FORM_54_3']['START_DATE']
         super(ReportForm543, self).get_data_from_db(filename, start_date)
 
