@@ -175,6 +175,8 @@ class RecordForm542:
         self.create_time = ''
         self.closed = ''
         self.complaint = 0
+        self.ticket_number = ''
+        self.volunteers = ''
 
 
 class RecordForm543:
@@ -669,7 +671,10 @@ class ReportForm542(Report):
             'Дата открытия',
             'Дата закрытия',
             'Жалоба',
+            'Номер заявки',
+            'Волонтёры',
         ]
+        self.municipalities = 'Муниципальные образования'
 
     def get_data_from_db(self, filename='form_54_2.sql', *args):
         start_date = report_dates['REPORT_FORM_54_2']['START_DATE']
@@ -698,13 +703,39 @@ class ReportForm542(Report):
                 record.phone_number = ticket_df[ticket_df['field_id'] == 16]['value_text'].item()
             if not ticket_df[ticket_df['field_id'] == 37]['value_int'].empty:
                 record.complaint = ticket_df[ticket_df['field_id'] == 37]['value_int'].item()
+            if not ticket_df[ticket_df['field_id'] == 39]['value_text'].empty:
+                record.volunteers = ticket_df[ticket_df['field_id'] == 39]['value_text'].item()
+            if not ticket_df[ticket_df['field_id'] == 40]['value_text'].empty:
+                record.volunteers += '; ' + ticket_df[ticket_df['field_id'] == 40]['value_text'].item()
+            record.ticket_number = str(ticket_df['tn'].iloc[0])
             record.create_time = str(ticket_df['create_time'].iloc[0])
             record.closed = str(ticket_df['closed'].iloc[0])
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
     def form_to_excel(self):
-        self.form_to_excel_by_territory('A:G', 'A1:G1')
+        column_range = 'A:I'
+        header_merge_range = 'A1:I1'
+        self.form_to_excel_by_territory(column_range, header_merge_range)
+        folder_path = os.path.join(BASE_DIR, self.form_name, self.municipalities)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        for record in self.form.items():
+            file_name = record[0] + '.xlsx'
+            workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
+            worksheet = workbook.add_worksheet()
+            worksheet.set_column(column_range, 20)
+            worksheet.set_row(0, 30)
+            worksheet.set_row(1, 80)
+            header_format = self.get_header_format(workbook)
+            row_format = self.get_row_format(workbook)
+            worksheet.merge_range(header_merge_range, record[0], header_format)
+            for idx, key in enumerate(self.header):
+                worksheet.write(1, idx, key, header_format)
+            for row_idx, data in enumerate(record[1], start=2):
+                for col_idx, (key, value) in enumerate(data.items()):
+                    worksheet.write(row_idx, col_idx, value, row_format)
+            workbook.close()
 
 
 class ReportForm543(Report):
