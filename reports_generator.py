@@ -7,13 +7,11 @@ import datetime
 import os
 from collections import defaultdict
 from working_time import compute_working_time
-import pyodbc
 
 
 config = configparser.ConfigParser()
 config.read('settings.ini')
 BASE_DIR = 'Z:\Отчеты OTRS\CallCenter'
-# BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 report_dates = configparser.ConfigParser()
 report_dates.read(os.path.join(BASE_DIR, 'report_dates.ini'))
 

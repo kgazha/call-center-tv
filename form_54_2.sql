@@ -4,7 +4,7 @@ from dynamic_field_value as dfv
 inner join ticket as t on dfv.object_id = t.id
 inner join ticket_type as tt on t.type_id = tt.id
 inner join ticket_state as ts on ts.id = t.ticket_state_id
-inner join (
+left join (
     SELECT tid, create_time closed
     FROM ticket_history th
     INNER JOIN (SELECT MAX(id) id, ticket_id tid
