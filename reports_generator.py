@@ -425,6 +425,7 @@ class ReportForm51(Report):
     def __init__(self):
         super().__init__()
         self.form_name = 'Форма_5_1'
+        self.max_working_days = report_dates['REPORT_FORM_51']['MAX_WORKING_DAYS']
         self.header = [
             'Наименование ОМСУ',
             'Всего обращений',
@@ -477,7 +478,7 @@ class ReportForm51(Report):
             elif ticket_state_id == 4 and ticket_lock_id == 2:
                 data[name]['in_work'] += 1
                 data['Итого']['in_work'] += 1
-                if compute_working_time(create_time, current_date) > 80:
+                if compute_working_time(create_time, current_date) > int(self.max_working_days) * 8:
                     data[name]['in_work_ten_days'] += 1
                     data['Итого']['in_work_ten_days'] += 1
             elif ticket_lock_id == 1:
@@ -610,6 +611,7 @@ class ReportForm54(Report):
     def __init__(self):
         super().__init__()
         self.form_name = 'Форма_5_4'
+        self.max_working_days = report_dates['REPORT_FORM_54']['MAX_WORKING_DAYS']
         self.header = [
             'ФИО',
             'Населенный пункт',
@@ -633,7 +635,7 @@ class ReportForm54(Report):
             ticket_df = df[df['ticket_id'] == _id]
             create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
             current_date = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
-            if compute_working_time(create_time, current_date) < 80:
+            if compute_working_time(create_time, current_date) < int(self.max_working_days) * 8:
                 continue
             record = RecordForm53()
             if not ticket_df[ticket_df['field_id'] == 12]['value_text'].empty:
@@ -661,6 +663,7 @@ class ReportForm542(Report):
     def __init__(self):
         super().__init__()
         self.form_name = 'Форма_5_4_2'
+        self.max_working_days = report_dates['REPORT_FORM_54_2']['MAX_WORKING_DAYS']
         self.header = [
             'ФИО',
             'Населенный пункт',
@@ -682,7 +685,7 @@ class ReportForm542(Report):
         df = pd.DataFrame.from_records(self.data)
         if df.empty:
             return
-        ticket_ids = list(set(df['ticket_id']))
+        ticket_ids = list(set(df[df['closed'].notnull()]['ticket_id']))
         data = defaultdict(list)
         for _id in ticket_ids:
             ticket_df = df[df['ticket_id'] == _id]
@@ -740,6 +743,7 @@ class ReportForm543(Report):
     def __init__(self):
         super().__init__()
         self.form_name = 'Форма_5_4_3'
+        self.max_working_days = report_dates['REPORT_FORM_54_3']['MAX_WORKING_DAYS']
         self.header = [
             'Наименование ОМСУ',
             'Количество заявок',
@@ -774,7 +778,7 @@ class ReportForm543(Report):
             if ticket_state_id in (2, 3, 10):
                 data[name]['closed'] += 1
                 data['Итого']['closed'] += 1
-                if compute_working_time(create_time, closed) <= 80:
+                if compute_working_time(create_time, closed) <= int(self.max_working_days) * 8:
                     data[name]['closed_on_time'] += 1
                     data['Итого']['closed_on_time'] += 1
         self.form = data
