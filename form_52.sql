@@ -8,6 +8,7 @@ where field_id in (14, 12, 15, 17, 16, 37)
 and tt.id = 11
 and ts.id in (2, 3, 10)
 and t.create_time > '{0}'
+and t.create_time <= '{1}'
 order by t.id) s1
 inner join
 (select ticket_id, max(create_time) as close_time from ticket_history

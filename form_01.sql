@@ -7,6 +7,7 @@ select s1.value_text, name, ticket_type_id, frequency, complaints from
 	where field_id = 14
 	and tt.id > 7
 	and t.create_time > '{0}'
+	and t.create_time <= '{1}'
 	group by value_text, name
 	order by value_text
 ) s1

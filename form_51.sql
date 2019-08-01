@@ -6,4 +6,5 @@ inner join ticket_state as ts on ts.id = t.ticket_state_id
 where field_id in (14, 30, 37)
 and tt.id = 11
 and t.create_time > '{0}'
+and t.create_time <= '{1}'
 order by t.id;

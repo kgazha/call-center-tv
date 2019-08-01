@@ -7,6 +7,7 @@ inner join ticket_type as tt on t.type_id = tt.id
 where field_id in (14, 12, 15, 37)
 and tt.id = 14
 and t.create_time > '{0}'
+and t.create_time <= '{1}'
 order by t.id) s1
 inner join
 (select ticket_id, max(id) as article_id

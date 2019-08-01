@@ -5,4 +5,5 @@ inner join ticket_type as tt on t.type_id = tt.id
 where field_id in (14, 12, 15, 37)
 and tt.id = 13
 and t.create_time > '{0}'
+and t.create_time <= '{1}'
 order by t.id
