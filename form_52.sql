@@ -11,6 +11,9 @@ and t.create_time > '{0}'
 and t.create_time <= '{1}'
 order by t.id) s1
 inner join
-(select ticket_id, max(create_time) as close_time from ticket_history
-group by ticket_id) s2
+(select ticket_id, min(create_time) as close_time
+ from ticket_history th
+ where th.create_time > '{0}'
+ and state_id in (2, 3, 10)
+ group by ticket_id) s2
 ON s1.ticket_id = s2.ticket_id;

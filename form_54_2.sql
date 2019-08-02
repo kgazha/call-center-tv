@@ -7,7 +7,7 @@ inner join ticket_state as ts on ts.id = t.ticket_state_id
 left join (
     SELECT tid, create_time closed
     FROM ticket_history th
-    INNER JOIN (SELECT MAX(id) id, ticket_id tid
+    INNER JOIN (SELECT MIN(id) id, ticket_id tid
                 FROM ticket_history th
                 WHERE
                     th.create_time > '{0}'
