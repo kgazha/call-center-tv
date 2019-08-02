@@ -11,12 +11,10 @@ left join (
                 FROM ticket_history th
                 WHERE
                     th.create_time > '{0}'
-                    and th.create_time <= '{1}'
                     AND th.state_id in (2, 3, 10)
                 GROUP BY tid) thids
     ON th.id = thids.id
     WHERE th.create_time > '{0}'
-    and th.create_time <= '{1}'
 ) s ON t.id = s.tid
 where field_id in (14, 12, 15, 17, 16, 37, 39, 40)
 and tt.id = 11

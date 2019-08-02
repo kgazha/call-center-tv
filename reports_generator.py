@@ -787,7 +787,7 @@ class ReportForm543(Report):
             'Количество заявок, закрытых в течение 10 дней',
         ]
 
-    def get_data_from_db(self, filename='form_54_3.sql', *args):
+    def get_data_from_db(self, filename='form_54_2.sql', *args):
         start_date = report_dates['REPORT_FORM_54_3']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_54_3']:
             end_date = datetime.date.today()
