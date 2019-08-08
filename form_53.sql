@@ -7,5 +7,5 @@ where field_id in (14, 12, 15, 17, 16, 37)
 and tt.id = 11
 and ts.id = 1
 and t.create_time > '{0}'
-and t.create_time <= '{1}'
+and t.create_time < '{1}'
 order by t.id

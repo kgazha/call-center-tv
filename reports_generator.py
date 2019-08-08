@@ -14,6 +14,13 @@ config.read('settings.ini')
 BASE_DIR = 'Z:\Отчеты OTRS\CallCenter'
 report_dates = configparser.ConfigParser()
 report_dates.read(os.path.join(BASE_DIR, 'report_dates.ini'))
+CURRENT_DATE = datetime.datetime.now().strftime('%Y-%m-%d')
+TOMORROW = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+
+MAX_WORKING_DAYS_DICT = {
+    ('2019-04-11', '2019-07-29'): 10,
+    ('2019-07-29', TOMORROW): 5,
+}
 
 db = MySQLdb.connect(config['CONNECTION']['HOST'],
                      config['CONNECTION']['USER'],
@@ -21,6 +28,14 @@ db = MySQLdb.connect(config['CONNECTION']['HOST'],
                      config['CONNECTION']['DATABASE'],
                      charset='utf8',
                      init_command='SET NAMES UTF8')
+
+
+def get_max_working_days(date):
+    for key in MAX_WORKING_DAYS_DICT.keys():
+        if datetime.datetime.strptime(key[0], '%Y-%m-%d') < datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S') < \
+                datetime.datetime.strptime(key[1], '%Y-%m-%d'):
+            return MAX_WORKING_DAYS_DICT[key]
+    raise ValueError("Incorrect date")
 
 
 class Report:
@@ -441,14 +456,13 @@ class ReportForm51(Report):
     def __init__(self):
         super().__init__()
         self.form_name = 'Форма_5_1'
-        self.max_working_days = report_dates['REPORT_FORM_51']['MAX_WORKING_DAYS']
         self.header = [
             'Наименование ОМСУ',
             'Всего обращений',
             'Закрытые заявки',
             'В работе',
             'Не взяты в работу в течение 3 дней',
-            'Взяты в работу, но не закрыты в течение 10 дней',
+            'Взяты в работу, но не закрыты вовремя',
             'Повторные обращения',
             'Жалоба',
         ]
@@ -489,6 +503,7 @@ class ReportForm51(Report):
                 data[name]['complaint'] += ticket_df[ticket_df['field_id'] == 37]['value_int'].item()
                 data['Итого']['complaint'] += ticket_df[ticket_df['field_id'] == 37]['value_int'].item()
             create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
+            max_working_days = get_max_working_days(create_time)
             current_date = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
             ticket_state_id = ticket_df[ticket_df['field_id'] == 14]['ticket_state_id'].item()
             ticket_lock_id = ticket_df[ticket_df['field_id'] == 14]['ticket_lock_id'].item()
@@ -498,7 +513,7 @@ class ReportForm51(Report):
             elif ticket_state_id == 4 and ticket_lock_id == 2:
                 data[name]['in_work'] += 1
                 data['Итого']['in_work'] += 1
-                if compute_working_time(create_time, current_date) > int(self.max_working_days) * 8:
+                if compute_working_time(create_time, current_date) > int(max_working_days) * 8:
                     data[name]['in_work_ten_days'] += 1
                     data['Итого']['in_work_ten_days'] += 1
             elif ticket_lock_id == 1:
@@ -639,7 +654,6 @@ class ReportForm54(Report):
     def __init__(self):
         super().__init__()
         self.form_name = 'Форма_5_4'
-        self.max_working_days = report_dates['REPORT_FORM_54']['MAX_WORKING_DAYS']
         self.header = [
             'ФИО',
             'Населенный пункт',
@@ -666,8 +680,9 @@ class ReportForm54(Report):
         for _id in ticket_ids:
             ticket_df = df[df['ticket_id'] == _id]
             create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
+            max_working_days = get_max_working_days(create_time)
             current_date = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
-            if compute_working_time(create_time, current_date) < int(self.max_working_days) * 8:
+            if compute_working_time(create_time, current_date) < int(max_working_days) * 8:
                 continue
             record = RecordForm53()
             if not ticket_df[ticket_df['field_id'] == 12]['value_text'].empty:
@@ -695,7 +710,6 @@ class ReportForm542(Report):
     def __init__(self):
         super().__init__()
         self.form_name = 'Форма_5_4_2'
-        self.max_working_days = report_dates['REPORT_FORM_54_2']['MAX_WORKING_DAYS']
         self.header = [
             'ФИО',
             'Населенный пункт',
@@ -726,8 +740,9 @@ class ReportForm542(Report):
         for _id in ticket_ids:
             ticket_df = df[df['ticket_id'] == _id]
             create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
+            max_working_days = get_max_working_days(create_time)
             closed = ticket_df[ticket_df['field_id'] == 14]['closed'].astype(str).item()
-            if compute_working_time(create_time, closed) > 80:
+            if compute_working_time(create_time, closed) > int(max_working_days) * 8:
                 continue
             record = RecordForm542()
             if not ticket_df[ticket_df['field_id'] == 12]['value_text'].empty:
@@ -779,12 +794,12 @@ class ReportForm543(Report):
     def __init__(self):
         super().__init__()
         self.form_name = 'Форма_5_4_3'
-        self.max_working_days = report_dates['REPORT_FORM_54_3']['MAX_WORKING_DAYS']
         self.header = [
             'Наименование ОМСУ',
             'Количество заявок',
             'Количество закрытых заявок',
-            'Количество заявок, закрытых в течение 10 дней',
+            'Количество вовремя закрытых заявок',
+            'Количество просроченных заявок',
         ]
 
     def get_data_from_db(self, filename='form_54_2.sql', *args):
@@ -801,26 +816,33 @@ class ReportForm543(Report):
             return
         ticket_ids = list(set(df['ticket_id']))
         data = dict()
-        data['Итого'] = {'total_tickets': 0, 'closed': 0, 'closed_on_time': 0}
+        data['Итого'] = {'total_tickets': 0, 'closed': 0, 'closed_on_time': 0, 'expired': 0}
         for _id in ticket_ids:
             ticket_df = df[df['ticket_id'] == _id]
             if not ticket_df[ticket_df['field_id'] == 14]['value_text'].empty:
                 name = ticket_df[ticket_df['field_id'] == 14]['value_text'].item()
                 if name not in data.keys():
-                    data[name] = {'total_tickets': 0, 'closed': 0, 'closed_on_time': 0}
+                    data[name] = {'total_tickets': 0, 'closed': 0, 'closed_on_time': 0, 'expired': 0}
             else:
                 continue
             data[name]['total_tickets'] += 1
             data['Итого']['total_tickets'] += 1
             create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
+            max_working_days = get_max_working_days(create_time)
             closed = ticket_df[ticket_df['field_id'] == 14]['closed'].astype(str).item()
             ticket_state_id = ticket_df[ticket_df['field_id'] == 14]['ticket_state_id'].item()
             if ticket_state_id in (2, 3, 10):
                 data[name]['closed'] += 1
                 data['Итого']['closed'] += 1
-                if compute_working_time(create_time, closed) <= int(self.max_working_days) * 8:
+                if compute_working_time(create_time, closed) <= int(max_working_days) * 8:
                     data[name]['closed_on_time'] += 1
                     data['Итого']['closed_on_time'] += 1
+                else:
+                    data[name]['expired'] += 1
+                    data['Итого']['expired'] += 1
+            elif compute_working_time(create_time, CURRENT_DATE) > int(max_working_days) * 8:
+                data[name]['expired'] += 1
+                data['Итого']['expired'] += 1
         self.form = data
 
     def form_to_excel(self):
@@ -833,7 +855,7 @@ class ReportForm543(Report):
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
         worksheet = workbook.add_worksheet()
         worksheet.set_column('A:B', 40)
-        worksheet.set_column('B:D', 20)
+        worksheet.set_column('B:E', 20)
         worksheet.set_row(0, 80)
         header_format = self.get_header_format(workbook)
         row_format = self.get_row_format(workbook)
@@ -1032,17 +1054,17 @@ class ReportFacade:
     def create_reports(cls):
         cls.reports = [
             ReportForm01(),
-            ReportForm02(),
-            ReportForm03(),
-            ReportForm04(),
-            ReportForm51(),
-            ReportForm52(),
-            ReportForm53(),
-            ReportForm54(),
-            ReportForm55(),
-            ReportForm06(),
-            ReportForm07(),
-            ReportForm08(),
+            # ReportForm02(),
+            # ReportForm03(),
+            # ReportForm04(),
+            # ReportForm51(),
+            # ReportForm52(),
+            # ReportForm53(),
+            # ReportForm54(),
+            # ReportForm55(),
+            # ReportForm06(),
+            # ReportForm07(),
+            # ReportForm08(),
             ReportForm542(),
             ReportForm543(),
         ]
