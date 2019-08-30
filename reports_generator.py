@@ -1047,13 +1047,95 @@ class ReportForm08(Report):
         self.form_to_excel_by_territory('A:D', 'A1:D1')
 
 
+class VolunteerRatingForm(Report):
+    def __init__(self):
+        super().__init__()
+        self.form_name = 'Рейтинг_волонтёров'
+        self.header = [
+            'ФИО',
+            'Муниципальный район',
+            'Количество баллов',
+            'Количество заявок',
+        ]
+        self.volunteer_ids = [39, 40]
+        self.volunteer_ticket_rate = {3: 1, 5: 2}
+
+    def get_data_from_db(self, filename='volunteer_rating.sql', *args):
+        start_date = report_dates['VOLUNTEER_RATING_FORM']['START_DATE']
+        if 'END_DATE' not in report_dates['VOLUNTEER_RATING_FORM']:
+            end_date = datetime.date.today()
+        else:
+            end_date = report_dates['VOLUNTEER_RATING_FORM']['END_DATE']
+        super(VolunteerRatingForm, self).get_data_from_db(filename, start_date, end_date)
+
+    def get_volunteers_rating(self, df):
+        volunteers_rating = defaultdict(dict)
+        region = df[df['field_id'] == 14]['value_text'].item()
+        volunteers = {}
+        for _id in self.volunteer_ids:
+            if not df[df['field_id'] == _id]['value_text'].empty:
+                ticket_priority_id = df[df['field_id'] == _id]['ticket_priority_id'].item()
+                volunteer_score = self.volunteer_ticket_rate[ticket_priority_id]
+                volunteers.update({df[df['field_id'] == _id]['value_text'].item(): volunteer_score})
+        for name, score in volunteers.items():
+            volunteers_rating.update({'name': name, 'region': region, 'score': score, 'tickets': 1})
+        # volunteers_rating.update({region: volunteers})
+        return volunteers_rating
+
+    def data_to_form_template(self):
+        df = pd.DataFrame.from_records(self.data)
+        if df.empty:
+            return
+        ticket_ids = list(set(df['ticket_id']))
+        volunteers_rating = []
+        for _id in ticket_ids:
+            ticket_df = df[df['ticket_id'] == _id]
+            if ticket_df[ticket_df['field_id'] == 14]['value_text'].empty:
+                continue
+            create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
+            max_working_days = get_max_working_days(create_time)
+            closed = ticket_df[ticket_df['field_id'] == 14]['closed'].astype(str).item()
+            ticket_state_id = ticket_df[ticket_df['field_id'] == 14]['ticket_state_id'].item()
+            if ticket_state_id in (2, 3, 10):
+                working_time = compute_working_time(create_time, closed)
+                if working_time <= int(max_working_days) * 8:
+                    volunteers_rating.append(self.get_volunteers_rating(ticket_df))
+        vdf = pd.DataFrame(volunteers_rating)
+        self.form = vdf.groupby(['name', 'region']).sum().reset_index().sort_values(by=['score'], ascending=False)
+
+    def form_to_excel(self):
+        # if not self.form:
+        #     return
+        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
+        worksheet = workbook.add_worksheet()
+        # worksheet.set_column('A:B', 40)
+        worksheet.set_column('A:D', 20)
+        worksheet.set_row(0, 80)
+        header_format = self.get_header_format(workbook)
+        row_format = self.get_row_format(workbook)
+        for idx, key in enumerate(self.header):
+            worksheet.write(0, idx, key, header_format)
+
+        for row_idx, (idx, row) in enumerate(self.form.iterrows(), start=1):
+            for col_idx, value in enumerate(row.values):
+                worksheet.write(row_idx, col_idx, value, row_format)
+        # worksheet.write(len(self.form), 0, 'Итого', row_format)
+        # for col_idx, (key, value) in enumerate(self.form['Итого'].items(), start=1):
+        #     worksheet.write(len(self.form), col_idx, value, row_format)
+        workbook.close()
+
+
 class ReportFacade:
     reports = None
 
     @classmethod
     def create_reports(cls):
         cls.reports = [
-            ReportForm01(),
+            # ReportForm01(),
             # ReportForm02(),
             # ReportForm03(),
             # ReportForm04(),
@@ -1065,8 +1147,9 @@ class ReportFacade:
             # ReportForm06(),
             # ReportForm07(),
             # ReportForm08(),
-            ReportForm542(),
-            ReportForm543(),
+            # ReportForm542(),
+            # ReportForm543(),
+            VolunteerRatingForm(),
         ]
 
     @classmethod
