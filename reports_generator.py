@@ -192,13 +192,6 @@ class RecordForm542:
         self.volunteers = ''
 
 
-class RecordForm543:
-    def __init__(self):
-        self.locality = ''
-        self.create_time = ''
-        self.closed = ''
-
-
 class RecordForm55:
     def __init__(self):
         self.name = ''
@@ -513,7 +506,7 @@ class ReportForm51(Report):
             elif ticket_state_id == 4 and ticket_lock_id == 2:
                 data[name]['in_work'] += 1
                 data['Итого']['in_work'] += 1
-                if compute_working_time(create_time, current_date) > int(max_working_days) * 8:
+                if compute_working_time(create_time, current_date) > int(max_working_days) * 24:
                     data[name]['in_work_ten_days'] += 1
                     data['Итого']['in_work_ten_days'] += 1
             elif ticket_lock_id == 1:
@@ -682,7 +675,7 @@ class ReportForm54(Report):
             create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
             max_working_days = get_max_working_days(create_time)
             current_date = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
-            if compute_working_time(create_time, current_date) < int(max_working_days) * 8:
+            if compute_working_time(create_time, current_date) < int(max_working_days) * 24:
                 continue
             record = RecordForm53()
             if not ticket_df[ticket_df['field_id'] == 12]['value_text'].empty:
@@ -742,7 +735,7 @@ class ReportForm542(Report):
             create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
             max_working_days = get_max_working_days(create_time)
             closed = ticket_df[ticket_df['field_id'] == 14]['closed'].astype(str).item()
-            if compute_working_time(create_time, closed) > int(max_working_days) * 8:
+            if compute_working_time(create_time, closed) > int(max_working_days) * 24:
                 continue
             record = RecordForm542()
             if not ticket_df[ticket_df['field_id'] == 12]['value_text'].empty:
@@ -799,7 +792,10 @@ class ReportForm543(Report):
             'Количество заявок',
             'Количество закрытых заявок',
             'Количество вовремя закрытых заявок',
-            'Количество просроченных заявок',
+            'Количество просроченных закрытых заявок',
+            'Количество просроченных открытых заявок',
+            'Количество открытых непросроченных заявок',
+            'Процент закрытых заявок в течение 5 дней от количества закрытых заявок',
         ]
 
     def get_data_from_db(self, filename='form_54_2.sql', *args):
@@ -816,13 +812,17 @@ class ReportForm543(Report):
             return
         ticket_ids = list(set(df['ticket_id']))
         data = dict()
-        data['Итого'] = {'total_tickets': 0, 'closed': 0, 'closed_on_time': 0, 'expired': 0}
+        data['Итого'] = {'total_tickets': 0, 'closed': 0, 'closed_on_time': 0,
+                         'expired_closed': 0, 'expired_open': 0, 'opened_not_expired': 0,
+                         'percent': 0}
         for _id in ticket_ids:
             ticket_df = df[df['ticket_id'] == _id]
             if not ticket_df[ticket_df['field_id'] == 14]['value_text'].empty:
                 name = ticket_df[ticket_df['field_id'] == 14]['value_text'].item()
                 if name not in data.keys():
-                    data[name] = {'total_tickets': 0, 'closed': 0, 'closed_on_time': 0, 'expired': 0}
+                    data[name] = {'total_tickets': 0, 'closed': 0, 'closed_on_time': 0,
+                                  'expired_closed': 0, 'expired_open': 0, 'opened_not_expired': 0,
+                                  'percent': 0}
             else:
                 continue
             data[name]['total_tickets'] += 1
@@ -834,15 +834,21 @@ class ReportForm543(Report):
             if ticket_state_id in (2, 3, 10):
                 data[name]['closed'] += 1
                 data['Итого']['closed'] += 1
-                if compute_working_time(create_time, closed) <= int(max_working_days) * 8:
+                if compute_working_time(create_time, closed) <= int(max_working_days) * 24:
                     data[name]['closed_on_time'] += 1
                     data['Итого']['closed_on_time'] += 1
                 else:
-                    data[name]['expired'] += 1
-                    data['Итого']['expired'] += 1
-            elif compute_working_time(create_time, CURRENT_DATE) > int(max_working_days) * 8:
-                data[name]['expired'] += 1
-                data['Итого']['expired'] += 1
+                    data[name]['expired_closed'] += 1
+                    data['Итого']['expired_closed'] += 1
+            # opened
+            elif compute_working_time(create_time, CURRENT_DATE) > int(max_working_days) * 24:
+                data[name]['expired_open'] += 1
+                data['Итого']['expired_open'] += 1
+            else:
+                data[name]['opened_not_expired'] += 1
+                data['Итого']['opened_not_expired'] += 1
+            data[name]['percent'] = data[name]['closed_on_time'] / data[name]['closed']
+        data['Итого']['percent'] = data['Итого']['closed_on_time'] / data['Итого']['closed']
         self.form = data
 
     def form_to_excel(self):
@@ -855,7 +861,7 @@ class ReportForm543(Report):
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
         worksheet = workbook.add_worksheet()
         worksheet.set_column('A:B', 40)
-        worksheet.set_column('B:E', 20)
+        worksheet.set_column('B:H', 20)
         worksheet.set_row(0, 80)
         header_format = self.get_header_format(workbook)
         row_format = self.get_row_format(workbook)
@@ -1079,7 +1085,6 @@ class VolunteerRatingForm(Report):
                 volunteers.update({df[df['field_id'] == _id]['value_text'].item(): volunteer_score})
         for name, score in volunteers.items():
             volunteers_rating.update({'name': name, 'region': region, 'score': score, 'tickets': 1})
-        # volunteers_rating.update({region: volunteers})
         return volunteers_rating
 
     def data_to_form_template(self):
@@ -1098,21 +1103,18 @@ class VolunteerRatingForm(Report):
             ticket_state_id = ticket_df[ticket_df['field_id'] == 14]['ticket_state_id'].item()
             if ticket_state_id in (2, 3, 10):
                 working_time = compute_working_time(create_time, closed)
-                if working_time <= int(max_working_days) * 8:
+                if working_time <= int(max_working_days) * 24:
                     volunteers_rating.append(self.get_volunteers_rating(ticket_df))
         vdf = pd.DataFrame(volunteers_rating)
         self.form = vdf.groupby(['name', 'region']).sum().reset_index().sort_values(by=['score'], ascending=False)
 
     def form_to_excel(self):
-        # if not self.form:
-        #     return
         file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
         folder_path = os.path.join(BASE_DIR, self.form_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
         worksheet = workbook.add_worksheet()
-        # worksheet.set_column('A:B', 40)
         worksheet.set_column('A:D', 20)
         worksheet.set_row(0, 80)
         header_format = self.get_header_format(workbook)
@@ -1123,9 +1125,6 @@ class VolunteerRatingForm(Report):
         for row_idx, (idx, row) in enumerate(self.form.iterrows(), start=1):
             for col_idx, value in enumerate(row.values):
                 worksheet.write(row_idx, col_idx, value, row_format)
-        # worksheet.write(len(self.form), 0, 'Итого', row_format)
-        # for col_idx, (key, value) in enumerate(self.form['Итого'].items(), start=1):
-        #     worksheet.write(len(self.form), col_idx, value, row_format)
         workbook.close()
 
 
@@ -1148,8 +1147,8 @@ class ReportFacade:
             # ReportForm07(),
             # ReportForm08(),
             # ReportForm542(),
-            # ReportForm543(),
-            VolunteerRatingForm(),
+            ReportForm543(),
+            # VolunteerRatingForm(),
         ]
 
     @classmethod

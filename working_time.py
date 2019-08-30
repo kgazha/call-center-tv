@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import pandas as pd
 from dateutil import parser
 import calendar
 import configparser
@@ -9,7 +8,6 @@ config = configparser.ConfigParser()
 config.read('settings.ini')
 
 YEAR = int(config['DATES']['YEAR'])
-LUNCH = range(43200, 45900)
 HOLIDAYS = config['DATES']['HOLIDAYS']
 HOLIDAYS = [i.strip(',') for i in HOLIDAYS.split()]
 WORKING_DATES = config['DATES']['WORKING_DATES']
@@ -34,16 +32,13 @@ def compute_working_time(_start, _end, dayfirst=False, result_in_hours=True):
         for day in range(first_day, days):
             next_date = str(day) + '.' + str(month) + '.' + str(YEAR)
             next_date = parser.parse(next_date, dayfirst=True).date()
-            if ((next_date.weekday() < 5) or \
+            if ((next_date.weekday() < 5) or
                (next_date in [parser.parse(i, dayfirst=True).date() for i in WORKING_DATES])) and \
                (next_date not in [parser.parse(i, dayfirst=True).date() for i in HOLIDAYS]):
-                start_hour = 8
-                start_minute = 30
-                end_hour = 17
-                end_minute = 30
-                if next_date.weekday() == 4:
-                    end_hour = 16
-                    end_minute = 15
+                start_hour = 0
+                start_minute = 0
+                end_hour = 24
+                end_minute = 0
                 if next_date == start.date():
                     if convert_to_seconds(start.hour, start.minute) >= \
                        convert_to_seconds(start_hour, start_minute):
@@ -66,15 +61,10 @@ def compute_working_time(_start, _end, dayfirst=False, result_in_hours=True):
                 
                 converted_start = convert_to_seconds(start_hour, start_minute)
                 converted_end = convert_to_seconds(end_hour, end_minute)
-                lunch_difference = set(range(converted_start, 
-                                             converted_end)).difference(set(LUNCH))
-                lunch_difference = list(lunch_difference)
-                if lunch_difference:
-                    converted_start = lunch_difference[0]
-                    converted_end = converted_start + len(lunch_difference)
-                    result += converted_end - converted_start
-                else:
-                    result += 0
+                result += converted_end - converted_start
     if result_in_hours:
         result /= 3600
     return result
+#
+# time = compute_working_time('2019-08-19 09:10:00', '2019-08-26 09:00:00')
+# print(time)
