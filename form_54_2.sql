@@ -18,6 +18,7 @@ left join (
 ) s ON t.id = s.tid
 where field_id in (14, 12, 15, 17, 16, 37, 39, 40)
 and tt.id = 11
+and ticket_state_id not in (5, 6, 9)
 and t.create_time > '{0}'
 and t.create_time < '{1}'
 order by t.id

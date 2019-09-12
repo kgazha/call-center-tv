@@ -832,6 +832,7 @@ class ReportForm543(Report):
             closed = ticket_df[ticket_df['field_id'] == 14]['closed'].astype(str).item()
             ticket_state_id = ticket_df[ticket_df['field_id'] == 14]['ticket_state_id'].item()
             if ticket_state_id in (2, 3, 10):
+                # print(compute_working_time(create_time, closed), '<<', _id)
                 data[name]['closed'] += 1
                 data['Итого']['closed'] += 1
                 if compute_working_time(create_time, closed) <= int(max_working_days) * 24:
@@ -847,7 +848,10 @@ class ReportForm543(Report):
             else:
                 data[name]['opened_not_expired'] += 1
                 data['Итого']['opened_not_expired'] += 1
-            data[name]['percent'] = data[name]['closed_on_time'] / data[name]['closed']
+            if data[name]['closed'] == 0:
+                data[name]['percent'] = 0
+            else:
+                data[name]['percent'] = data[name]['closed_on_time'] / data[name]['closed']
         data['Итого']['percent'] = data['Итого']['closed_on_time'] / data['Итого']['closed']
         self.form = data
 
@@ -1134,7 +1138,7 @@ class ReportFacade:
     @classmethod
     def create_reports(cls):
         cls.reports = [
-            # ReportForm01(),
+            ReportForm01(),
             # ReportForm02(),
             # ReportForm03(),
             # ReportForm04(),

@@ -4,8 +4,10 @@ select s1.value_text, name, ticket_type_id, frequency, complaints from
 	from dynamic_field_value as dfv
 	inner join ticket as t on dfv.object_id = t.id
 	inner join ticket_type as tt on t.type_id = tt.id
+	inner join ticket_state as ts on ts.id = t.ticket_state_id
 	where field_id = 14
 	and tt.id > 7
+	and ts.id not in (5, 6, 9)
 	and t.create_time > '{0}'
 	and t.create_time < '{1}'
 	group by value_text, name
