@@ -15,11 +15,13 @@ BASE_DIR = 'Z:\Отчеты OTRS\CallCenter'
 report_dates = configparser.ConfigParser()
 report_dates.read(os.path.join(BASE_DIR, 'report_dates.ini'))
 CURRENT_DATE = datetime.datetime.now().strftime('%Y-%m-%d')
+CURRENT_DATE_TIME = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 TOMORROW = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
 
 MAX_WORKING_DAYS_DICT = {
     ('2019-04-11', '2019-07-29'): 10,
-    ('2019-07-29', TOMORROW): 5,
+    ('2019-07-29', '2019-07-16'): 5,
+    ('2019-07-29', TOMORROW): 3,
 }
 
 db = MySQLdb.connect(config['CONNECTION']['HOST'],
@@ -497,7 +499,6 @@ class ReportForm51(Report):
                 data['Итого']['complaint'] += ticket_df[ticket_df['field_id'] == 37]['value_int'].item()
             create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
             max_working_days = get_max_working_days(create_time)
-            current_date = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
             ticket_state_id = ticket_df[ticket_df['field_id'] == 14]['ticket_state_id'].item()
             ticket_lock_id = ticket_df[ticket_df['field_id'] == 14]['ticket_lock_id'].item()
             if ticket_state_id in (2, 3, 10):
@@ -506,11 +507,11 @@ class ReportForm51(Report):
             elif ticket_state_id == 4 and ticket_lock_id == 2:
                 data[name]['in_work'] += 1
                 data['Итого']['in_work'] += 1
-                if compute_working_time(create_time, current_date) > int(max_working_days) * 24:
+                if compute_working_time(create_time, CURRENT_DATE_TIME) > int(max_working_days) * 24:
                     data[name]['in_work_ten_days'] += 1
                     data['Итого']['in_work_ten_days'] += 1
             elif ticket_lock_id == 1:
-                if compute_working_time(create_time, current_date) > 24:
+                if compute_working_time(create_time, CURRENT_DATE_TIME) > 24:
                     data[name]['open_three_days'] += 1
                     data['Итого']['open_three_days'] += 1
         self.form = data
@@ -620,8 +621,7 @@ class ReportForm53(Report):
         for _id in ticket_ids:
             ticket_df = df[df['ticket_id'] == _id]
             create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
-            current_date = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
-            if compute_working_time(create_time, current_date) < 24:
+            if compute_working_time(create_time, CURRENT_DATE_TIME) < 24:
                 continue
             record = RecordForm53()
             if not ticket_df[ticket_df['field_id'] == 12]['value_text'].empty:
@@ -674,8 +674,7 @@ class ReportForm54(Report):
             ticket_df = df[df['ticket_id'] == _id]
             create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
             max_working_days = get_max_working_days(create_time)
-            current_date = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
-            if compute_working_time(create_time, current_date) < int(max_working_days) * 24:
+            if compute_working_time(create_time, CURRENT_DATE_TIME) < int(max_working_days) * 24:
                 continue
             record = RecordForm53()
             if not ticket_df[ticket_df['field_id'] == 12]['value_text'].empty:
@@ -832,7 +831,6 @@ class ReportForm543(Report):
             closed = ticket_df[ticket_df['field_id'] == 14]['closed'].astype(str).item()
             ticket_state_id = ticket_df[ticket_df['field_id'] == 14]['ticket_state_id'].item()
             if ticket_state_id in (2, 3, 10):
-                # print(compute_working_time(create_time, closed), '<<', _id)
                 data[name]['closed'] += 1
                 data['Итого']['closed'] += 1
                 if compute_working_time(create_time, closed) <= int(max_working_days) * 24:
@@ -841,8 +839,7 @@ class ReportForm543(Report):
                 else:
                     data[name]['expired_closed'] += 1
                     data['Итого']['expired_closed'] += 1
-            # opened
-            elif compute_working_time(create_time, CURRENT_DATE) > int(max_working_days) * 24:
+            elif compute_working_time(create_time, CURRENT_DATE_TIME) > int(max_working_days) * 24:
                 data[name]['expired_open'] += 1
                 data['Итого']['expired_open'] += 1
             else:
