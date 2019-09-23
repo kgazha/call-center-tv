@@ -246,7 +246,7 @@ class ReportForm01(Report):
     def get_data_from_db(self, filename='form_01.sql', *args):
         start_date = report_dates['REPORT_FORM_01']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_01']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_01']['END_DATE']
         super(ReportForm01, self).get_data_from_db(filename, start_date, end_date)
@@ -310,7 +310,7 @@ class ReportForm02(Report):
     def get_data_from_db(self, filename='form_02.sql', *args):
         start_date = report_dates['REPORT_FORM_02']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_02']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_02']['END_DATE']
         super(ReportForm02, self).get_data_from_db(filename, start_date, end_date)
@@ -364,7 +364,7 @@ class ReportForm03(Report):
     def get_data_from_db(self, filename='form_03.sql', *args):
         start_date = report_dates['REPORT_FORM_03']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_03']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_03']['END_DATE']
         super(ReportForm03, self).get_data_from_db(filename, start_date, end_date)
@@ -413,7 +413,7 @@ class ReportForm04(Report):
     def get_data_from_db(self, filename='form_04.sql', *args):
         start_date = report_dates['REPORT_FORM_04']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_04']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_04']['END_DATE']
         super(ReportForm04, self).get_data_from_db(filename, start_date, end_date)
@@ -465,7 +465,7 @@ class ReportForm51(Report):
     def get_data_from_db(self, filename='form_51.sql', *args):
         start_date = report_dates['REPORT_FORM_51']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_51']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_51']['END_DATE']
         super(ReportForm51, self).get_data_from_db(filename, start_date, end_date)
@@ -559,7 +559,7 @@ class ReportForm52(Report):
     def get_data_from_db(self, filename='form_52.sql', *args):
         start_date = report_dates['REPORT_FORM_52']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_52']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_52']['END_DATE']
         super(ReportForm52, self).get_data_from_db(filename, start_date, end_date)
@@ -607,7 +607,7 @@ class ReportForm53(Report):
     def get_data_from_db(self, filename='form_53.sql', *args):
         start_date = report_dates['REPORT_FORM_53']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_53']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_53']['END_DATE']
         super(ReportForm53, self).get_data_from_db(filename, start_date, end_date)
@@ -659,7 +659,7 @@ class ReportForm54(Report):
     def get_data_from_db(self, filename='form_54.sql', *args):
         start_date = report_dates['REPORT_FORM_54']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_54']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_54']['END_DATE']
         super(ReportForm54, self).get_data_from_db(filename, start_date, end_date)
@@ -718,7 +718,7 @@ class ReportForm542(Report):
     def get_data_from_db(self, filename='form_54_2.sql', *args):
         start_date = report_dates['REPORT_FORM_54_2']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_54_2']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_54_2']['END_DATE']
         super(ReportForm542, self).get_data_from_db(filename, start_date, end_date)
@@ -800,7 +800,7 @@ class ReportForm543(Report):
     def get_data_from_db(self, filename='form_54_2.sql', *args):
         start_date = report_dates['REPORT_FORM_54_3']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_54_3']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_54_3']['END_DATE']
         super(ReportForm543, self).get_data_from_db(filename, start_date, end_date)
@@ -896,7 +896,7 @@ class ReportForm55(Report):
     def get_data_from_db(self, filename='form_55.sql', *args):
         start_date = report_dates['REPORT_FORM_55']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_55']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_55']['END_DATE']
         super(ReportForm55, self).get_data_from_db(filename, start_date, end_date)
@@ -943,7 +943,7 @@ class ReportForm06(Report):
     def get_data_from_db(self, filename='form_06.sql', *args):
         start_date = report_dates['REPORT_FORM_06']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_06']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_06']['END_DATE']
         super(ReportForm06, self).get_data_from_db(filename, start_date, end_date)
@@ -985,7 +985,7 @@ class ReportForm07(Report):
     def get_data_from_db(self, filename='form_07.sql', *args):
         start_date = report_dates['REPORT_FORM_07']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_07']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_07']['END_DATE']
         super(ReportForm07, self).get_data_from_db(filename, start_date, end_date)
@@ -1026,7 +1026,7 @@ class ReportForm08(Report):
     def get_data_from_db(self, filename='form_08.sql', *args):
         start_date = report_dates['REPORT_FORM_08']['START_DATE']
         if 'END_DATE' not in report_dates['REPORT_FORM_08']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['REPORT_FORM_08']['END_DATE']
         super(ReportForm08, self).get_data_from_db(filename, start_date, end_date)
@@ -1070,7 +1070,7 @@ class VolunteerRatingForm(Report):
     def get_data_from_db(self, filename='volunteer_rating.sql', *args):
         start_date = report_dates['VOLUNTEER_RATING_FORM']['START_DATE']
         if 'END_DATE' not in report_dates['VOLUNTEER_RATING_FORM']:
-            end_date = datetime.date.today()
+            end_date = TOMORROW
         else:
             end_date = report_dates['VOLUNTEER_RATING_FORM']['END_DATE']
         super(VolunteerRatingForm, self).get_data_from_db(filename, start_date, end_date)
@@ -1147,9 +1147,9 @@ class ReportFacade:
             # ReportForm06(),
             # ReportForm07(),
             # ReportForm08(),
-            # ReportForm542(),
+            ReportForm542(),
             ReportForm543(),
-            # VolunteerRatingForm(),
+            VolunteerRatingForm(),
         ]
 
     @classmethod
