@@ -228,6 +228,13 @@ class RecordForm08:
         self.complaint = ''
 
 
+class RecordBadGuysForm:
+    def __init__(self):
+        self.ticket_number = ''
+        self.theme = ''
+        self.create_time = ''
+
+
 class ReportForm01(Report):
     def __init__(self):
         super().__init__()
@@ -929,6 +936,58 @@ class ReportForm55(Report):
         self.form_to_excel_by_territory('A:G', 'A1:G1')
 
 
+class BadGuysReportForm(Report):
+    def __init__(self):
+        super().__init__()
+        self.form_name = 'Bad_Guys'
+        self.header = [
+            'Населенный пункт',
+            'Номер заявки',
+            'Тема',
+            'Дата создания',
+        ]
+
+    def get_data_from_db(self, filename='tickets_by_location.sql', *args):
+        start_date = report_dates['BAD_GUYS']['START_DATE']
+        if 'END_DATE' not in report_dates['BAD_GUYS']:
+            end_date = TOMORROW
+        else:
+            end_date = report_dates['BAD_GUYS']['END_DATE']
+        super(BadGuysReportForm, self).get_data_from_db(filename, start_date, end_date)
+
+    def ticket_is_reopened(self, ticket_id):
+        bad_guys = False
+        sql = 'select state_id from ticket_history where ticket_id = {0};'.format(ticket_id)
+        self.cursor.execute(sql)
+        data = list(map(lambda x: x['state_id'], self.cursor.fetchall()))
+        first_closed_index = min(list(map(lambda x: data.index(x) if x in data else len(data), [2, 3, 10])))
+        for idx in range(first_closed_index, len(data)):
+            if data[idx] == 4:
+                bad_guys = True
+        return bad_guys
+
+    def data_to_form_template(self):
+        df = pd.DataFrame.from_records(self.data)
+        if df.empty:
+            return
+        ticket_ids = list(set(df['ticket_id']))
+        data = defaultdict(list)
+        for _id in ticket_ids:
+            ticket_df = df[df['ticket_id'] == _id]
+            bad_guys = self.ticket_is_reopened(_id)
+            if bad_guys:
+                record = RecordBadGuysForm()
+                if not ticket_df[ticket_df['field_id'] == 44]['value_text'].empty:
+                    record.theme = ticket_df[ticket_df['field_id'] == 44]['value_text'].item()
+                record.create_time = str(ticket_df['create_time'].iloc[0])
+                record.ticket_number = str(ticket_df['tn'].iloc[0])
+                data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
+        self.form = dict(data)
+
+    def form_to_excel(self):
+        self.form_to_excel_aggregated('A:D')
+
+
 class ReportForm06(Report):
     def __init__(self):
         super().__init__()
@@ -1136,20 +1195,10 @@ class ReportFacade:
     def create_reports(cls):
         cls.reports = [
             ReportForm01(),
-            # ReportForm02(),
-            # ReportForm03(),
-            # ReportForm04(),
-            # ReportForm51(),
-            # ReportForm52(),
-            # ReportForm53(),
-            # ReportForm54(),
-            # ReportForm55(),
-            # ReportForm06(),
-            # ReportForm07(),
-            # ReportForm08(),
             ReportForm542(),
             ReportForm543(),
             VolunteerRatingForm(),
+            BadGuysReportForm(),
         ]
 
     @classmethod
