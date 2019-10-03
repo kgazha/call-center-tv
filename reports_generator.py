@@ -247,6 +247,7 @@ class ReportForm01(Report):
             12: 'Подключение к системе коллективного приема телевидения (СКПТ)',
             13: 'Вещание региональных каналов',
             14: 'Иное',
+            0: 'Итого',
             37: 'Жалоба',
         }
 
@@ -267,8 +268,11 @@ class ReportForm01(Report):
                 df.at[row['value_text'], self.themes[37]] = row['complaints']
             df.at[row['value_text'], self.themes[row['ticket_type_id']]] = row['frequency']
         df.at['Итого'] = 0
+        df.T.at['Итого'] = 0
         for key in df.keys():
             df.at['Итого', key] = sum(df[key])
+        for row in df.iloc[:, :-2].T.keys():
+            df.at[row, 'Итого'] = sum(df.iloc[:, :-2].T[row])
         self.form = df
 
     def form_to_excel(self):
