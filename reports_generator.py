@@ -5,6 +5,7 @@ import configparser
 import xlsxwriter
 import datetime
 import os
+import argparse
 from collections import defaultdict
 from working_time import compute_working_time
 
@@ -32,6 +33,25 @@ db = MySQLdb.connect(config['CONNECTION']['HOST'],
                      init_command='SET NAMES UTF8')
 
 
+class RecordTypes:
+    VOLUNTEERS = {'code': 11, 'name': 'Вызов волонтеров на подключение оборудования'}
+    OTHER = {'code': 14, 'name': 'Иное'}
+    PURCHASE = {'code': 9, 'name': 'Выбор и покупка приемного оборудования (телевизор, приставка, антенна)'}
+    SOCIAL = {'code': 8, 'name': 'Социальная поддержка льготных категорий граждан'}
+    COMPLAINTS = {'code': 37, 'name': 'Жалобы'}
+    TOTAL = {'code': None, 'name': 'Итого'}
+    DATA = {'code': None, 'name': 'Дата'}
+
+    @staticmethod
+    def get_record_types():
+        return [k for k in RecordTypes.__dict__.keys() if not k.startswith('_') and k.isupper()]
+
+    @staticmethod
+    def get_queues():
+        record_types = RecordTypes.get_record_types()
+        return [k for k in record_types if getattr(RecordTypes, k)['code']]
+
+
 def get_max_working_days(date):
     for key in MAX_WORKING_DAYS_DICT.keys():
         if datetime.datetime.strptime(key[0], '%Y-%m-%d') < datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S') < \
@@ -46,7 +66,10 @@ class Report:
         self.data = None
         self.form = None
         self.form_name = None
+        self.form_verbose_name = None
         self.header = None
+        self.start_date = None
+        self.end_date = None
 
     def get_data_from_db(self, filename, *args):
         sql_form = open(filename).read()
@@ -56,17 +79,28 @@ class Report:
             self.cursor.execute(sql_form)
         self.data = self.cursor.fetchall()
 
+    def init_dates(self, *args):
+        if args:
+            if args[0]:
+                self.start_date = CURRENT_DATE
+        else:
+            self.start_date = report_dates[self.form_name]['START_DATE']
+        if 'END_DATE' not in report_dates[self.form_name]:
+            self.end_date = TOMORROW
+        else:
+            self.end_date = report_dates[self.form_name]['END_DATE']
+
     def data_to_form_template(self):
         pass
 
-    def form_to_excel(self):
+    def form_to_file(self):
         pass
 
     def form_to_excel_by_territory(self, column_range, header_merge_range):
         if not self.form:
             return
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
+        file_name = self.form_verbose_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_verbose_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
@@ -88,8 +122,8 @@ class Report:
     def form_to_excel_aggregated(self, column_range):
         if not self.form:
             return
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
+        file_name = self.form_verbose_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_verbose_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
@@ -236,9 +270,11 @@ class RecordBadGuysForm:
 
 
 class ReportForm01(Report):
-    def __init__(self):
+    def __init__(self, *args):
         super().__init__()
-        self.form_name = 'Форма_1'
+        self.form_verbose_name = 'Форма_1_TEST'
+        self.form_name = 'REPORT_FORM_01'
+        self.init_dates(*args)
         self.themes = {
             9: 'Выбор и покупка приемного оборудования (телевизор, приставка, антенна)',
             8: 'Социальная поддержка льготных категорий граждан',
@@ -252,12 +288,7 @@ class ReportForm01(Report):
         }
 
     def get_data_from_db(self, filename='form_01.sql', *args):
-        start_date = report_dates['REPORT_FORM_01']['START_DATE']
-        if 'END_DATE' not in report_dates['REPORT_FORM_01']:
-            end_date = TOMORROW
-        else:
-            end_date = report_dates['REPORT_FORM_01']['END_DATE']
-        super(ReportForm01, self).get_data_from_db(filename, start_date, end_date)
+        super(ReportForm01, self).get_data_from_db(filename, self.start_date, self.end_date)
 
     def data_to_form_template(self):
         _values = self.themes.values()
@@ -275,11 +306,11 @@ class ReportForm01(Report):
             df.at[row, 'Итого'] = sum(df.iloc[:, :-2].T[row])
         self.form = df
 
-    def form_to_excel(self):
+    def form_to_file(self):
         if self.form is None:
             self.data_to_form_template()
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
+        file_name = self.form_verbose_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_verbose_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
@@ -307,7 +338,7 @@ class ReportForm01(Report):
 class ReportForm02(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_2'
+        self.form_verbose_name = 'Форма_2'
         self.header = [
             'ФИО',
             'Наименование населенного пункта',
@@ -355,14 +386,14 @@ class ReportForm02(Report):
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
-    def form_to_excel(self):
+    def form_to_file(self):
         self.form_to_excel_by_territory('A:G', 'A1:G1')
 
 
 class ReportForm03(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_3'
+        self.form_verbose_name = 'Форма_3'
         self.header = [
             'ФИО',
             'Наименование населенного пункта',
@@ -402,14 +433,14 @@ class ReportForm03(Report):
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
-    def form_to_excel(self):
+    def form_to_file(self):
         self.form_to_excel_by_territory('A:F', 'A1:F1')
 
 
 class ReportForm04(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_4'
+        self.form_verbose_name = 'Форма_4'
         self.header = [
             'ФИО',
             'Наименование населенного пункта',
@@ -454,14 +485,14 @@ class ReportForm04(Report):
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
-    def form_to_excel(self):
+    def form_to_file(self):
         self.form_to_excel_by_territory('A:H', 'A1:H1')
 
 
 class ReportForm51(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_5_1'
+        self.form_verbose_name = 'Форма_5_1'
         self.header = [
             'Наименование ОМСУ',
             'Всего обращений',
@@ -527,11 +558,11 @@ class ReportForm51(Report):
                     data['Итого']['open_three_days'] += 1
         self.form = data
 
-    def form_to_excel(self):
+    def form_to_file(self):
         if not self.form:
             return
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
+        file_name = self.form_verbose_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_verbose_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
@@ -557,7 +588,7 @@ class ReportForm51(Report):
 class ReportForm52(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_5_2'
+        self.form_verbose_name = 'Форма_5_2'
         self.header = [
             'ФИО',
             'Населенный пункт',
@@ -598,14 +629,14 @@ class ReportForm52(Report):
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
-    def form_to_excel(self):
+    def form_to_file(self):
         self.form_to_excel_by_territory('A:F', 'A1:F1')
 
 
 class ReportForm53(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_5_3'
+        self.form_verbose_name = 'Форма_5_3'
         self.header = [
             'ФИО',
             'Населенный пункт',
@@ -650,14 +681,14 @@ class ReportForm53(Report):
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
-    def form_to_excel(self):
+    def form_to_file(self):
         self.form_to_excel_by_territory('A:F', 'A1:F1')
 
 
 class ReportForm54(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_5_4'
+        self.form_verbose_name = 'Форма_5_4'
         self.header = [
             'ФИО',
             'Населенный пункт',
@@ -702,7 +733,7 @@ class ReportForm54(Report):
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
-    def form_to_excel(self):
+    def form_to_file(self):
         self.form_to_excel_by_territory('A:F', 'A1:F1')
 
 
@@ -712,7 +743,7 @@ class ReportForm542(Report):
     """
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_5_4_2'
+        self.form_verbose_name = 'Форма_5_4_2'
         self.header = [
             'ФИО',
             'Населенный пункт',
@@ -768,11 +799,11 @@ class ReportForm542(Report):
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
-    def form_to_excel(self):
+    def form_to_file(self):
         column_range = 'A:I'
         header_merge_range = 'A1:I1'
         self.form_to_excel_by_territory(column_range, header_merge_range)
-        folder_path = os.path.join(BASE_DIR, self.form_name, self.municipalities)
+        folder_path = os.path.join(BASE_DIR, self.form_verbose_name, self.municipalities)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         for record in self.form.items():
@@ -796,7 +827,7 @@ class ReportForm542(Report):
 class ReportForm543(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_5_4_3'
+        self.form_verbose_name = 'Форма_5_4_3'
         self.header = [
             'Наименование ОМСУ',
             'Количество заявок',
@@ -863,11 +894,11 @@ class ReportForm543(Report):
         data['Итого']['percent'] = data['Итого']['closed_on_time'] / data['Итого']['closed']
         self.form = data
 
-    def form_to_excel(self):
+    def form_to_file(self):
         if not self.form:
             return
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
+        file_name = self.form_verbose_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_verbose_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
@@ -893,7 +924,7 @@ class ReportForm543(Report):
 class ReportForm55(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_5_5'
+        self.form_verbose_name = 'Форма_5_5'
         self.header = [
             'ФИО',
             'Населенный пункт',
@@ -936,14 +967,14 @@ class ReportForm55(Report):
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
-    def form_to_excel(self):
+    def form_to_file(self):
         self.form_to_excel_by_territory('A:G', 'A1:G1')
 
 
 class BadGuysReportForm(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Bad_Guys'
+        self.form_verbose_name = 'Bad_Guys'
         self.header = [
             'Населенный пункт',
             'Номер заявки',
@@ -988,14 +1019,14 @@ class BadGuysReportForm(Report):
                 data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
-    def form_to_excel(self):
+    def form_to_file(self):
         self.form_to_excel_aggregated('A:D')
 
 
 class ReportForm06(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_6'
+        self.form_verbose_name = 'Форма_6'
         self.header = [
             'ФИО',
             'Наименование населенного пункта',
@@ -1031,14 +1062,14 @@ class ReportForm06(Report):
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
-    def form_to_excel(self):
+    def form_to_file(self):
         self.form_to_excel_by_territory('A:D', 'A1:D1')
 
 
 class ReportForm07(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_7'
+        self.form_verbose_name = 'Форма_7'
         self.header = [
             'ФИО',
             'Наименование населенного пункта',
@@ -1071,14 +1102,14 @@ class ReportForm07(Report):
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
-    def form_to_excel(self):
+    def form_to_file(self):
         self.form_to_excel_by_territory('A:C', 'A1:C1')
 
 
 class ReportForm08(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Форма_8'
+        self.form_verbose_name = 'Форма_8'
         self.header = [
             'ФИО',
             'Наименование населенного пункта',
@@ -1113,14 +1144,14 @@ class ReportForm08(Report):
             data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
-    def form_to_excel(self):
+    def form_to_file(self):
         self.form_to_excel_by_territory('A:D', 'A1:D1')
 
 
 class VolunteerRatingForm(Report):
     def __init__(self):
         super().__init__()
-        self.form_name = 'Рейтинг_волонтёров'
+        self.form_verbose_name = 'Рейтинг_волонтёров'
         self.header = [
             'ФИО',
             'Муниципальный район',
@@ -1172,9 +1203,9 @@ class VolunteerRatingForm(Report):
         vdf = pd.DataFrame(volunteers_rating)
         self.form = vdf.groupby(['name', 'region']).sum().reset_index().sort_values(by=['score'], ascending=False)
 
-    def form_to_excel(self):
-        file_name = self.form_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_name)
+    def form_to_file(self):
+        file_name = self.form_verbose_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
+        folder_path = os.path.join(BASE_DIR, self.form_verbose_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
@@ -1196,13 +1227,13 @@ class ReportFacade:
     reports = None
 
     @classmethod
-    def create_reports(cls):
+    def create_reports(cls, auto=False):
         cls.reports = [
-            ReportForm01(),
-            ReportForm542(),
-            ReportForm543(),
-            VolunteerRatingForm(),
-            BadGuysReportForm(),
+            ReportForm01(auto),
+            # ReportForm542(),
+            # ReportForm543(),
+            # VolunteerRatingForm(),
+            # BadGuysReportForm(),
         ]
 
     @classmethod
@@ -1210,9 +1241,15 @@ class ReportFacade:
         for report in cls.reports:
             report.get_data_from_db()
             report.data_to_form_template()
-            report.form_to_excel()
+            report.form_to_file()
 
 
 if __name__ == '__main__':
-    ReportFacade.create_reports()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--settings')
+    args = parser.parse_args()
+    if args.settings == 'auto':
+        ReportFacade.create_reports(auto=True)
+    else:
+        ReportFacade.create_reports(auto=False)
     ReportFacade.data_to_excel()
