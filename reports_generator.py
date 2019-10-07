@@ -39,6 +39,9 @@ class RecordTypes:
     PURCHASE = {'code': 9, 'name': 'Выбор и покупка приемного оборудования (телевизор, приставка, антенна)'}
     SOCIAL = {'code': 8, 'name': 'Социальная поддержка льготных категорий граждан'}
     COMPLAINTS = {'code': 37, 'name': 'Жалобы'}
+    BROADCASTING_OUTSIDE = {'code': 10, 'name': 'Вещание на территориях вне зоны цифрового сигнала'}
+    CONNECTION = {'code': 12, 'name': 'Подключение к системе коллективного приема телевидения (СКПТ)'}
+    BROADCASTING_REGIONAL = {'code': 13, 'name': 'Вещание региональных каналов'}
     TOTAL = {'code': None, 'name': 'Итого'}
     DATA = {'code': None, 'name': 'Дата'}
 
@@ -50,6 +53,14 @@ class RecordTypes:
     def get_queues():
         record_types = RecordTypes.get_record_types()
         return [k for k in record_types if getattr(RecordTypes, k)['code']]
+
+    @staticmethod
+    def get_record_queue_by_code(code):
+        queues = RecordTypes.get_queues()
+        for k in queues:
+            if getattr(RecordTypes, k)['code'] == code:
+                return getattr(RecordTypes, k)
+        return None
 
 
 def get_max_working_days(date):
@@ -275,35 +286,39 @@ class ReportForm01(Report):
         self.form_verbose_name = 'Форма_1_TEST'
         self.form_name = 'REPORT_FORM_01'
         self.init_dates(*args)
-        self.themes = {
-            9: 'Выбор и покупка приемного оборудования (телевизор, приставка, антенна)',
-            8: 'Социальная поддержка льготных категорий граждан',
-            10: 'Вещание на территориях вне зоны цифрового сигнала',
-            11: 'Вызов волонтеров на подключение оборудования',
-            12: 'Подключение к системе коллективного приема телевидения (СКПТ)',
-            13: 'Вещание региональных каналов',
-            14: 'Иное',
-            0: 'Итого',
-            37: 'Жалоба',
-        }
+        # self.themes = {
+        #     9: 'Выбор и покупка приемного оборудования (телевизор, приставка, антенна)',
+        #     8: 'Социальная поддержка льготных категорий граждан',
+        #     10: 'Вещание на территориях вне зоны цифрового сигнала',
+        #     11: 'Вызов волонтеров на подключение оборудования',
+        #     12: 'Подключение к системе коллективного приема телевидения (СКПТ)',
+        #     13: 'Вещание региональных каналов',
+        #     14: 'Иное',
+        #     0: 'Итого',
+        #     37: 'Жалоба',
+        # }
+        self.records = [RecordTypes.PURCHASE, RecordTypes.SOCIAL, RecordTypes.BROADCASTING_OUTSIDE,
+                        RecordTypes.VOLUNTEERS, RecordTypes.CONNECTION, RecordTypes.BROADCASTING_REGIONAL,
+                        RecordTypes.OTHER, RecordTypes.TOTAL, RecordTypes.COMPLAINTS]
 
     def get_data_from_db(self, filename='form_01.sql', *args):
         super(ReportForm01, self).get_data_from_db(filename, self.start_date, self.end_date)
 
     def data_to_form_template(self):
-        _values = self.themes.values()
+        _values = list(set(map(lambda x: x['name'], self.records)))
         _index = list(set(map(lambda x: x['value_text'], self.data)))
         df = pd.DataFrame(0, index=_index, columns=_values)
         for row in self.data:
             if row['complaints'] is not None:
-                df.at[row['value_text'], self.themes[37]] = row['complaints']
-            df.at[row['value_text'], self.themes[row['ticket_type_id']]] = row['frequency']
-        df.at['Итого'] = 0
-        df.T.at['Итого'] = 0
+                df.at[row['value_text'], RecordTypes.COMPLAINTS['name']] = row['complaints']
+            record_type = RecordTypes.get_record_queue_by_code(row['ticket_type_id'])
+            df.at[row['value_text'], record_type['name']] = row['frequency']
+        df.at[RecordTypes.TOTAL['name']] = 0
+        df.T.at[RecordTypes.TOTAL['name']] = 0
         for key in df.keys():
-            df.at['Итого', key] = sum(df[key])
+            df.at[RecordTypes.TOTAL['name'], key] = sum(df[key])
         for row in df.iloc[:, :-2].T.keys():
-            df.at[row, 'Итого'] = sum(df.iloc[:, :-2].T[row])
+            df.at[row, RecordTypes.TOTAL['name']] = sum(df.iloc[:, :-2].T[row])
         self.form = df
 
     def form_to_file(self):
@@ -320,16 +335,16 @@ class ReportForm01(Report):
         header_format = self.get_header_format(workbook)
         row_format = self.get_row_format(workbook)
         worksheet.write(0, 0, 'Наименование ОМСУ', header_format)
-        for idx, theme_key in enumerate(self.themes, start=1):
-            worksheet.write(0, idx, self.themes[theme_key], header_format)
+        for idx, record in enumerate(self.records, start=1):
+            worksheet.write(0, idx, record['name'], header_format)
         for row in range(1, len(self.form) + 1):
-            for col in range(1, len(self.themes) + 1):
+            for col in range(1, len(self.records) + 1):
                 worksheet.write(row, col, 0, row_format)
         for idx_row, (row_name, row_data) in enumerate(self.form.iterrows(), start=1):
             worksheet.write(idx_row, 0, row_name)
             for col_name, col_value in row_data.items():
-                for idx_theme, (theme_key, theme_value) in enumerate(self.themes.items(), start=1):
-                    if theme_value == col_name:
+                for idx_theme, record in enumerate(self.records, start=1):
+                    if record['name'] == col_name:
                         worksheet.write(idx_row, idx_theme, col_value, row_format)
                         break
         workbook.close()
