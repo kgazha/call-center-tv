@@ -18,6 +18,7 @@ report_dates.read(os.path.join(BASE_DIR, 'report_dates.ini'))
 CURRENT_DATE = datetime.datetime.now().strftime('%Y-%m-%d')
 CURRENT_DATE_TIME = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 TOMORROW = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+YESTERDAY = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
 
 MAX_WORKING_DAYS_DICT = {
     ('2019-04-11', '2019-07-29'): 10,
@@ -72,7 +73,7 @@ def get_max_working_days(date):
 
 
 class Report:
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.cursor = db.cursor(MySQLdb.cursors.DictCursor)
         self.data = None
         self.form = None
@@ -81,6 +82,14 @@ class Report:
         self.header = None
         self.start_date = None
         self.end_date = None
+        if 'daily' in kwargs:
+            self.daily = kwargs['daily']
+        else:
+            self.daily = False
+        if 'path' in kwargs:
+            self.result_folder_path = kwargs['path']
+        else:
+            self.result_folder_path = BASE_DIR
 
     def get_data_from_db(self, filename, *args):
         sql_form = open(filename).read()
@@ -90,11 +99,10 @@ class Report:
             self.cursor.execute(sql_form)
         self.data = self.cursor.fetchall()
 
-    def init_dates(self, *args):
-        if args:
-            if args[0]:
-                self.start_date = CURRENT_DATE
-        else:
+    def init_dates(self):
+        if self.daily:
+            self.start_date = CURRENT_DATE
+        elif 'START_DATE' in report_dates[self.form_name]:
             self.start_date = report_dates[self.form_name]['START_DATE']
         if 'END_DATE' not in report_dates[self.form_name]:
             self.end_date = TOMORROW
@@ -111,7 +119,7 @@ class Report:
         if not self.form:
             return
         file_name = self.form_verbose_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_verbose_name)
+        folder_path = os.path.join(self.result_folder_path, self.form_verbose_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
@@ -282,11 +290,11 @@ class RecordBadGuysForm:
 
 
 class ReportForm01(Report):
-    def __init__(self, *args):
-        super().__init__()
-        self.form_verbose_name = 'Форма_1_TEST'
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.form_name = 'REPORT_FORM_01'
-        self.init_dates(*args)
+        self.init_dates()
+        self.form_verbose_name = 'Форма_1_TEST'
         self.records = [RecordTypes.PURCHASE, RecordTypes.SOCIAL, RecordTypes.BROADCASTING_OUTSIDE,
                         RecordTypes.VOLUNTEERS, RecordTypes.CONNECTION, RecordTypes.BROADCASTING_REGIONAL,
                         RecordTypes.OTHER, RecordTypes.TOTAL, RecordTypes.COMPLAINTS]
@@ -312,6 +320,12 @@ class ReportForm01(Report):
         self.form = df
 
     def form_to_file(self):
+        self.form_to_excel()
+
+    def form_to_csv(self):
+        pass
+
+    def form_to_excel(self):
         if self.form is None:
             self.data_to_form_template()
         file_name = self.form_verbose_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
@@ -746,8 +760,10 @@ class ReportForm542(Report):
     """
     Tickets that was closed for ten days
     """
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.form_name = 'REPORT_FORM_54_2'
+        self.init_dates()
         self.form_verbose_name = 'Форма_5_4_2'
         self.header = [
             'ФИО',
@@ -763,12 +779,7 @@ class ReportForm542(Report):
         self.municipalities = 'Муниципальные образования'
 
     def get_data_from_db(self, filename='form_54_2.sql', *args):
-        start_date = report_dates['REPORT_FORM_54_2']['START_DATE']
-        if 'END_DATE' not in report_dates['REPORT_FORM_54_2']:
-            end_date = TOMORROW
-        else:
-            end_date = report_dates['REPORT_FORM_54_2']['END_DATE']
-        super(ReportForm542, self).get_data_from_db(filename, start_date, end_date)
+        super(ReportForm542, self).get_data_from_db(filename, self.start_date, self.end_date)
 
     def data_to_form_template(self):
         df = pd.DataFrame.from_records(self.data)
@@ -830,8 +841,10 @@ class ReportForm542(Report):
 
 
 class ReportForm543(Report):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.form_name = 'REPORT_FORM_54_3'
+        self.init_dates()
         self.form_verbose_name = 'Форма_5_4_3'
         self.header = [
             'Наименование ОМСУ',
@@ -845,12 +858,7 @@ class ReportForm543(Report):
         ]
 
     def get_data_from_db(self, filename='form_54_2.sql', *args):
-        start_date = report_dates['REPORT_FORM_54_3']['START_DATE']
-        if 'END_DATE' not in report_dates['REPORT_FORM_54_3']:
-            end_date = TOMORROW
-        else:
-            end_date = report_dates['REPORT_FORM_54_3']['END_DATE']
-        super(ReportForm543, self).get_data_from_db(filename, start_date, end_date)
+        super(ReportForm543, self).get_data_from_db(filename, self.start_date, self.end_date)
 
     def data_to_form_template(self):
         df = pd.DataFrame.from_records(self.data)
@@ -977,8 +985,10 @@ class ReportForm55(Report):
 
 
 class BadGuysReportForm(Report):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.form_name = 'BAD_GUYS'
+        self.init_dates()
         self.form_verbose_name = 'Bad_Guys_temp'
         self.header = [
             'Населенный пункт',
@@ -990,12 +1000,7 @@ class BadGuysReportForm(Report):
         self.ticket_history = 'select * from ticket_history where ticket_id = {0};'
 
     def get_data_from_db(self, filename='tickets_by_location.sql', *args):
-        start_date = report_dates['BAD_GUYS']['START_DATE']
-        if 'END_DATE' not in report_dates['BAD_GUYS']:
-            end_date = TOMORROW
-        else:
-            end_date = report_dates['BAD_GUYS']['END_DATE']
-        super(BadGuysReportForm, self).get_data_from_db(filename, start_date, end_date)
+        super(BadGuysReportForm, self).get_data_from_db(filename, self.start_date, self.end_date)
 
     def ticket_is_reopened(self, ticket_id):
         bad_guys = False
@@ -1166,8 +1171,10 @@ class ReportForm08(Report):
 
 
 class VolunteerRatingForm(Report):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.form_name = 'VOLUNTEER_RATING_FORM'
+        self.init_dates()
         self.form_verbose_name = 'Рейтинг_волонтёров'
         self.header = [
             'ФИО',
@@ -1179,12 +1186,7 @@ class VolunteerRatingForm(Report):
         self.volunteer_ticket_rate = {3: 1, 5: 2}
 
     def get_data_from_db(self, filename='volunteer_rating.sql', *args):
-        start_date = report_dates['VOLUNTEER_RATING_FORM']['START_DATE']
-        if 'END_DATE' not in report_dates['VOLUNTEER_RATING_FORM']:
-            end_date = TOMORROW
-        else:
-            end_date = report_dates['VOLUNTEER_RATING_FORM']['END_DATE']
-        super(VolunteerRatingForm, self).get_data_from_db(filename, start_date, end_date)
+        super(VolunteerRatingForm, self).get_data_from_db(filename, self.start_date, self.end_date)
 
     def get_volunteers_rating(self, df):
         volunteers_rating = defaultdict(dict)
@@ -1192,9 +1194,9 @@ class VolunteerRatingForm(Report):
         volunteers = {}
         for _id in self.volunteer_ids:
             if not df[df['field_id'] == _id]['value_text'].empty:
-                ticket_priority_id = df[df['field_id'] == _id]['ticket_priority_id'].item()
+                ticket_priority_id = df[df['field_id'] == _id]['ticket_priority_id'].iloc[0]
                 volunteer_score = self.volunteer_ticket_rate[ticket_priority_id]
-                volunteers.update({df[df['field_id'] == _id]['value_text'].item(): volunteer_score})
+                volunteers.update({df[df['field_id'] == _id]['value_text'].iloc[0]: volunteer_score})
         for name, score in volunteers.items():
             volunteers_rating.update({'name': name, 'region': region, 'score': score, 'tickets': 1})
         return volunteers_rating
@@ -1244,13 +1246,13 @@ class ReportFacade:
     reports = None
 
     @classmethod
-    def create_reports(cls, auto=False):
+    def create_reports(cls, daily, path):
         cls.reports = [
-            # ReportForm01(auto),
-            # ReportForm542(),
-            # ReportForm543(),
-            # VolunteerRatingForm(),
-            BadGuysReportForm(),
+            # ReportForm01(daily=daily, path=path),
+            # ReportForm542(daily=daily),
+            # ReportForm543(daily=daily, path=path),
+            VolunteerRatingForm(daily=daily, path=path),
+            # BadGuysReportForm(daily=daily, path=path),
         ]
 
     @classmethod
@@ -1263,10 +1265,16 @@ class ReportFacade:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--settings')
+    parser.add_argument('-t', '--type')
+    parser.add_argument('-p', '--path')
+    parser.add_argument('-f', action='store_true')
     args = parser.parse_args()
-    if args.settings == 'auto':
-        ReportFacade.create_reports(auto=True)
-    else:
-        ReportFacade.create_reports(auto=False)
+    print(args)
+    _daily = False
+    _path = None
+    if args.type == 'daily':
+        _daily = True
+    if args.path:
+        _path = args.path
+    ReportFacade.create_reports(daily=_daily, path=_path)
     ReportFacade.data_to_excel()
