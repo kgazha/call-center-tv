@@ -278,6 +278,7 @@ class RecordBadGuysForm:
         self.ticket_number = ''
         self.theme = ''
         self.create_time = ''
+        self.reopened_dates = ''
 
 
 class ReportForm01(Report):
@@ -286,17 +287,6 @@ class ReportForm01(Report):
         self.form_verbose_name = 'Форма_1_TEST'
         self.form_name = 'REPORT_FORM_01'
         self.init_dates(*args)
-        # self.themes = {
-        #     9: 'Выбор и покупка приемного оборудования (телевизор, приставка, антенна)',
-        #     8: 'Социальная поддержка льготных категорий граждан',
-        #     10: 'Вещание на территориях вне зоны цифрового сигнала',
-        #     11: 'Вызов волонтеров на подключение оборудования',
-        #     12: 'Подключение к системе коллективного приема телевидения (СКПТ)',
-        #     13: 'Вещание региональных каналов',
-        #     14: 'Иное',
-        #     0: 'Итого',
-        #     37: 'Жалоба',
-        # }
         self.records = [RecordTypes.PURCHASE, RecordTypes.SOCIAL, RecordTypes.BROADCASTING_OUTSIDE,
                         RecordTypes.VOLUNTEERS, RecordTypes.CONNECTION, RecordTypes.BROADCASTING_REGIONAL,
                         RecordTypes.OTHER, RecordTypes.TOTAL, RecordTypes.COMPLAINTS]
@@ -989,13 +979,15 @@ class ReportForm55(Report):
 class BadGuysReportForm(Report):
     def __init__(self):
         super().__init__()
-        self.form_verbose_name = 'Bad_Guys'
+        self.form_verbose_name = 'Bad_Guys_temp'
         self.header = [
             'Населенный пункт',
             'Номер заявки',
             'Тема',
             'Дата создания',
+            'Даты переоткрытия',
         ]
+        self.ticket_history = 'select * from ticket_history where ticket_id = {0};'
 
     def get_data_from_db(self, filename='tickets_by_location.sql', *args):
         start_date = report_dates['BAD_GUYS']['START_DATE']
@@ -1007,14 +999,24 @@ class BadGuysReportForm(Report):
 
     def ticket_is_reopened(self, ticket_id):
         bad_guys = False
-        sql = 'select state_id from ticket_history where ticket_id = {0};'.format(ticket_id)
-        self.cursor.execute(sql)
+        self.cursor.execute(self.ticket_history.format(ticket_id))
         data = list(map(lambda x: x['state_id'], self.cursor.fetchall()))
         first_closed_index = min(list(map(lambda x: data.index(x) if x in data else len(data), [2, 3, 10])))
         for idx in range(first_closed_index, len(data)):
             if data[idx] == 4:
                 bad_guys = True
         return bad_guys
+
+    def get_reopened_dates(self, ticket_id):
+        dates = []
+        self.cursor.execute(self.ticket_history.format(ticket_id))
+        data = self.cursor.fetchall()
+        ids = list(map(lambda x: x['state_id'], data))
+        first_closed_index = min(list(map(lambda x: ids.index(x) if x in ids else len(ids), [2, 3, 10])))
+        for idx in range(first_closed_index, len(data)):
+            if ids[idx] == 4 and ids[idx-1] != 4:
+                dates.append(data[idx]['create_time'].strftime('%Y-%m-%d'))
+        return dates
 
     def data_to_form_template(self):
         df = pd.DataFrame.from_records(self.data)
@@ -1027,10 +1029,10 @@ class BadGuysReportForm(Report):
             bad_guys = self.ticket_is_reopened(_id)
             if bad_guys:
                 record = RecordBadGuysForm()
-                if not ticket_df[ticket_df['field_id'] == 44]['value_text'].empty:
-                    record.theme = ticket_df[ticket_df['field_id'] == 44]['value_text'].item()
+                record.theme = str(ticket_df['title'].iloc[0])
                 record.create_time = str(ticket_df['create_time'].iloc[0])
                 record.ticket_number = str(ticket_df['tn'].iloc[0])
+                record.reopened_dates = '; '.join(self.get_reopened_dates(_id))
                 data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
         self.form = dict(data)
 
@@ -1244,11 +1246,11 @@ class ReportFacade:
     @classmethod
     def create_reports(cls, auto=False):
         cls.reports = [
-            ReportForm01(auto),
+            # ReportForm01(auto),
             # ReportForm542(),
             # ReportForm543(),
             # VolunteerRatingForm(),
-            # BadGuysReportForm(),
+            BadGuysReportForm(),
         ]
 
     @classmethod
