@@ -39,7 +39,7 @@ class RecordTypes:
     OTHER = {'code': 14, 'name': 'Иное'}
     PURCHASE = {'code': 9, 'name': 'Выбор и покупка приемного оборудования (телевизор, приставка, антенна)'}
     SOCIAL = {'code': 8, 'name': 'Социальная поддержка льготных категорий граждан'}
-    COMPLAINTS = {'code': 37, 'name': 'Жалобы'}
+    COMPLAINTS = {'code': 15, 'name': 'Жалобы'}
     BROADCASTING_OUTSIDE = {'code': 10, 'name': 'Вещание на территориях вне зоны цифрового сигнала'}
     CONNECTION = {'code': 12, 'name': 'Подключение к системе коллективного приема телевидения (СКПТ)'}
     BROADCASTING_REGIONAL = {'code': 13, 'name': 'Вещание региональных каналов'}
@@ -82,14 +82,14 @@ class Report:
         self.header = None
         self.start_date = None
         self.end_date = None
+        self.daily = False
+        self.result_folder_path = BASE_DIR
         if 'daily' in kwargs:
-            self.daily = kwargs['daily']
-        else:
-            self.daily = False
+            if kwargs['daily']:
+                self.daily = kwargs['daily']
         if 'path' in kwargs:
-            self.result_folder_path = kwargs['path']
-        else:
-            self.result_folder_path = BASE_DIR
+            if kwargs['path']:
+                self.result_folder_path = kwargs['path']
 
     def get_data_from_db(self, filename, *args):
         sql_form = open(filename).read()
@@ -142,7 +142,7 @@ class Report:
         if not self.form:
             return
         file_name = self.form_verbose_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_verbose_name)
+        folder_path = os.path.join(self.result_folder_path, self.form_verbose_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
@@ -294,7 +294,7 @@ class ReportForm01(Report):
         super().__init__(**kwargs)
         self.form_name = 'REPORT_FORM_01'
         self.init_dates()
-        self.form_verbose_name = 'Форма_1_TEST'
+        self.form_verbose_name = 'Форма_1'
         self.records = [RecordTypes.PURCHASE, RecordTypes.SOCIAL, RecordTypes.BROADCASTING_OUTSIDE,
                         RecordTypes.VOLUNTEERS, RecordTypes.CONNECTION, RecordTypes.BROADCASTING_REGIONAL,
                         RecordTypes.OTHER, RecordTypes.TOTAL, RecordTypes.COMPLAINTS]
@@ -310,6 +310,7 @@ class ReportForm01(Report):
             if row['complaints'] is not None:
                 df.at[row['value_text'], RecordTypes.COMPLAINTS['name']] = row['complaints']
             record_type = RecordTypes.get_record_queue_by_code(row['ticket_type_id'])
+            # print(row['value_text'], record_type)
             df.at[row['value_text'], record_type['name']] = row['frequency']
         df.at[RecordTypes.TOTAL['name']] = 0
         df.T.at[RecordTypes.TOTAL['name']] = 0
@@ -329,7 +330,7 @@ class ReportForm01(Report):
         if self.form is None:
             self.data_to_form_template()
         file_name = self.form_verbose_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_verbose_name)
+        folder_path = os.path.join(self.result_folder_path, self.form_verbose_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
@@ -789,37 +790,37 @@ class ReportForm542(Report):
         data = defaultdict(list)
         for _id in ticket_ids:
             ticket_df = df[df['ticket_id'] == _id]
-            create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).item()
+            create_time = ticket_df[ticket_df['field_id'] == 14]['create_time'].astype(str).iloc[0]
             max_working_days = get_max_working_days(create_time)
-            closed = ticket_df[ticket_df['field_id'] == 14]['closed'].astype(str).item()
+            closed = ticket_df[ticket_df['field_id'] == 14]['closed'].astype(str).iloc[0]
             if compute_working_time(create_time, closed) > int(max_working_days) * 24:
                 continue
             record = RecordForm542()
             if not ticket_df[ticket_df['field_id'] == 12]['value_text'].empty:
-                record.name = ticket_df[ticket_df['field_id'] == 12]['value_text'].item()
+                record.name = ticket_df[ticket_df['field_id'] == 12]['value_text'].iloc[0]
             if not ticket_df[ticket_df['field_id'] == 15]['value_text'].empty:
-                record.locality = ticket_df[ticket_df['field_id'] == 15]['value_text'].item()
+                record.locality = ticket_df[ticket_df['field_id'] == 15]['value_text'].iloc[0]
             if not ticket_df[ticket_df['field_id'] == 17]['value_text'].empty:
-                record.address = ticket_df[ticket_df['field_id'] == 17]['value_text'].item()
+                record.address = ticket_df[ticket_df['field_id'] == 17]['value_text'].iloc[0]
             if not ticket_df[ticket_df['field_id'] == 16]['value_text'].empty:
-                record.phone_number = ticket_df[ticket_df['field_id'] == 16]['value_text'].item()
+                record.phone_number = ticket_df[ticket_df['field_id'] == 16]['value_text'].iloc[0]
             if not ticket_df[ticket_df['field_id'] == 37]['value_int'].empty:
-                record.complaint = ticket_df[ticket_df['field_id'] == 37]['value_int'].item()
+                record.complaint = ticket_df[ticket_df['field_id'] == 37]['value_int'].iloc[0]
             if not ticket_df[ticket_df['field_id'] == 39]['value_text'].empty:
-                record.volunteers = ticket_df[ticket_df['field_id'] == 39]['value_text'].item()
+                record.volunteers = ticket_df[ticket_df['field_id'] == 39]['value_text'].iloc[0]
             if not ticket_df[ticket_df['field_id'] == 40]['value_text'].empty:
-                record.volunteers += '; ' + ticket_df[ticket_df['field_id'] == 40]['value_text'].item()
+                record.volunteers += '; ' + ticket_df[ticket_df['field_id'] == 40]['value_text'].iloc[0]
             record.ticket_number = str(ticket_df['tn'].iloc[0])
             record.create_time = str(ticket_df['create_time'].iloc[0])
             record.closed = str(ticket_df['closed'].iloc[0])
-            data[ticket_df[ticket_df['field_id'] == 14]['value_text'].item()].append(record.__dict__)
+            data[ticket_df[ticket_df['field_id'] == 14]['value_text'].iloc[0]].append(record.__dict__)
         self.form = dict(data)
 
     def form_to_file(self):
         column_range = 'A:I'
         header_merge_range = 'A1:I1'
         self.form_to_excel_by_territory(column_range, header_merge_range)
-        folder_path = os.path.join(BASE_DIR, self.form_verbose_name, self.municipalities)
+        folder_path = os.path.join(self.result_folder_path, self.form_verbose_name, self.municipalities)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         for record in self.form.items():
@@ -885,7 +886,7 @@ class ReportForm543(Report):
             max_working_days = get_max_working_days(create_time)
             closed = ticket_df[ticket_df['field_id'] == 14]['closed'].astype(str).item()
             ticket_state_id = ticket_df[ticket_df['field_id'] == 14]['ticket_state_id'].item()
-            if ticket_state_id in (2, 3, 10):
+            if ticket_state_id in (2, 3, 10) and closed:
                 data[name]['closed'] += 1
                 data['Итого']['closed'] += 1
                 if compute_working_time(create_time, closed) <= int(max_working_days) * 24:
@@ -911,7 +912,7 @@ class ReportForm543(Report):
         if not self.form:
             return
         file_name = self.form_verbose_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_verbose_name)
+        folder_path = os.path.join(self.result_folder_path, self.form_verbose_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
@@ -989,7 +990,7 @@ class BadGuysReportForm(Report):
         super().__init__(**kwargs)
         self.form_name = 'BAD_GUYS'
         self.init_dates()
-        self.form_verbose_name = 'Bad_Guys_temp'
+        self.form_verbose_name = 'Bad_Guys'
         self.header = [
             'Населенный пункт',
             'Номер заявки',
@@ -1224,7 +1225,7 @@ class VolunteerRatingForm(Report):
 
     def form_to_file(self):
         file_name = self.form_verbose_name + datetime.date.today().strftime("_%d_%m_%Y") + '.xlsx'
-        folder_path = os.path.join(BASE_DIR, self.form_verbose_name)
+        folder_path = os.path.join(self.result_folder_path, self.form_verbose_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         workbook = xlsxwriter.Workbook(os.path.join(folder_path, file_name))
@@ -1249,9 +1250,8 @@ class ReportFacade:
     def create_reports(cls, daily, path):
         cls.reports = [
             # ReportForm01(daily=daily, path=path),
-            # ReportForm542(daily=daily),
-            # ReportForm543(daily=daily, path=path),
-            VolunteerRatingForm(daily=daily, path=path),
+            ReportForm543(daily=daily, path=path),
+            # VolunteerRatingForm(daily=daily, path=path),
             # BadGuysReportForm(daily=daily, path=path),
         ]
 
@@ -1267,9 +1267,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-t', '--type')
     parser.add_argument('-p', '--path')
-    parser.add_argument('-f', action='store_true')
     args = parser.parse_args()
-    print(args)
     _daily = False
     _path = None
     if args.type == 'daily':
