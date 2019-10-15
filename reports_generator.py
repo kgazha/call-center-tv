@@ -905,7 +905,10 @@ class ReportForm543(Report):
                 data[name]['percent'] = 0
             else:
                 data[name]['percent'] = data[name]['closed_on_time'] / data[name]['closed']
-        data['Итого']['percent'] = data['Итого']['closed_on_time'] / data['Итого']['closed']
+        if data['Итого']['closed'] != 0:
+            data['Итого']['percent'] = data['Итого']['closed_on_time'] / data['Итого']['closed']
+        else:
+            data['Итого']['percent'] = 0
         self.form = data
 
     def form_to_file(self):

@@ -1,4 +1,4 @@
-select field_id, value_text, t.id as ticket_id,
+select field_id, value_text, t.id as ticket_id, t.title,
        t.tn, t.create_time, closed
 from dynamic_field_value as dfv
 inner join ticket as t on dfv.object_id = t.id
@@ -14,7 +14,7 @@ left join (
     ON th.id = thids.id
     WHERE th.create_time > '{0}'
 ) s ON t.id = s.tid
-where field_id in (14, 44)
+where field_id = 14
 and tt.id = 11
 and ticket_state_id not in (5, 6, 9)
 and t.create_time > '{0}'
