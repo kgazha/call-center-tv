@@ -310,14 +310,14 @@ class ReportForm01(Report):
             if row['complaints'] is not None:
                 df.at[row['value_text'], RecordTypes.COMPLAINTS['name']] = row['complaints']
             record_type = RecordTypes.get_record_queue_by_code(row['ticket_type_id'])
-            # print(row['value_text'], record_type)
             df.at[row['value_text'], record_type['name']] = row['frequency']
         df.at[RecordTypes.TOTAL['name']] = 0
         df.T.at[RecordTypes.TOTAL['name']] = 0
         for key in df.keys():
             df.at[RecordTypes.TOTAL['name'], key] = sum(df[key])
-        for row in df.iloc[:, :-2].T.keys():
-            df.at[row, RecordTypes.TOTAL['name']] = sum(df.iloc[:, :-2].T[row])
+        total_df = df.drop(RecordTypes.COMPLAINTS['name'], axis=1)
+        for row in total_df.T.keys():
+            df.at[row, RecordTypes.TOTAL['name']] = sum(total_df.T[row])
         self.form = df
 
     def form_to_file(self):
@@ -1252,8 +1252,8 @@ class ReportFacade:
     @classmethod
     def create_reports(cls, daily, path):
         cls.reports = [
-            # ReportForm01(daily=daily, path=path),
-            ReportForm543(daily=daily, path=path),
+            ReportForm01(daily=daily, path=path),
+            # ReportForm543(daily=daily, path=path),
             # VolunteerRatingForm(daily=daily, path=path),
             # BadGuysReportForm(daily=daily, path=path),
         ]
